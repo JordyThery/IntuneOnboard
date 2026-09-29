@@ -65,24 +65,32 @@ Languages section of `Docs/Configuration.md`.
 ## Status
 
 **1.0.1 is released but has not yet been used in a production rollout.** It is
-extensively tested — 253 unit tests, and every configuration key and failure
-path exercised across roughly twenty wiped ADE enrollments on real hardware —
-but that testing was done by one person, in one tenant, on a small number of
-Mac models. Treat it as a capable 1.0 rather than as battle-hardened, and pilot
-it on a handful of Macs before pointing it at a fleet.
+extensively tested — every configuration key and failure path exercised across
+roughly twenty wiped ADE enrollments on real hardware — but that testing was
+done by one person, in one tenant, on a small number of Mac models. Treat it as
+a capable 1.0 rather than as battle-hardened, and pilot it on a handful of Macs
+before pointing it at a fleet.
+
+The next release (see **Unreleased** in `CHANGELOG.md`) comes out of a code
+review of the daemon's process-lifetime paths. Its fixes are covered by 266
+unit tests and have passed a test pass on a macOS VM — the Try again retry,
+upgrading under fast user switching, `script` items by `path`, and a
+provisioning-only profile. It still wants one wiped ADE enrollment on
+hardware before it is tagged.
 
 Known gaps, none of which have run anywhere real:
 
 - Expiry of the ten-minute wait for a late configuration profile.
-- Multiple displays, and fast user switching with the card up.
-- Provisioning-only and onboarding-only deployments (omitting either
-  dictionary). These work by design and are unit-tested, but have not run on
-  a device.
+- A second display during Setup Assistant, and switching users while the
+  provisioning card is up.
+- Onboarding-only deployments (omitting the `provisioning` dictionary). They
+  work by design and are unit-tested, but have not run on a device.
+  Provisioning-only has.
 - `validate-config` reports a misleading `OK — 0 items` when handed a wrapped
   `.mobileconfig` rather than the bare plist. Feed it the `.plist`.
 
 The root daemon runs scripts from the profile as root by design. That path has
-had no external security review; the design notes in
+had an internal code review but no external security review; the design notes in
 `Docs/SetupAssistant-Findings.md` explain the boundaries it does enforce
 (configuration read only from managed preferences, mutual code-signature
 checks on the XPC connection, privileged operations resolved from the daemon's
