@@ -1,6 +1,6 @@
 import Foundation
 
-/// A provisioning (device provisioning) item.
+/// One provisioning step.
 public struct ProvisioningItem: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case installomator(label: String, options: [String])
@@ -11,9 +11,9 @@ public struct ProvisioningItem: Equatable, Sendable {
 
     public struct ScriptSpec: Equatable, Sendable {
         public enum Source: Equatable, Sendable {
-            /// Written to a 0700 root-only temp dir at run time, removed after.
+            /// Staged in a root-only temporary directory.
             case inline(String)
-            /// Must be root-owned and not group/world-writable.
+            /// Must be a regular file owned by root and not writable by group or others.
             case path(String)
         }
 
@@ -21,7 +21,7 @@ public struct ProvisioningItem: Equatable, Sendable {
         public let interpreter: String
         public let arguments: [String]
         public let successExitCodes: [Int]
-        /// stdout lines starting with `status:` update the row's status text.
+        /// Output lines starting with `status:` update the item's status text.
         public let statusFromOutput: Bool
 
         public init(

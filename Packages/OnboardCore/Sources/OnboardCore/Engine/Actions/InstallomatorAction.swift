@@ -1,8 +1,6 @@
 import Foundation
 
-/// Runs one Installomator label via the vendored script.
-/// `DEBUG=0` is always the final argument (later `eval`'d assignments win),
-/// so no configured option can re-enable dry-run mode.
+/// Runs one Installomator label. `DEBUG=0` is always the last argument.
 enum InstallomatorAction {
     static func run(
         item: ProvisioningItem,

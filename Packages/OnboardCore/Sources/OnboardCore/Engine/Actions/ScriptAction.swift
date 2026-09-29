@@ -1,21 +1,11 @@
 import Foundation
 
-/// Runs an admin-supplied root script with a minimal environment.
+/// Runs a configured script as root with a minimal environment.
 ///
-/// Inline scripts are written to a fresh 0700 root-only directory and the
-/// directory is removed afterwards. Path scripts go through the same staging,
-/// fed by `verifiedContent`: the file is opened once, verified through the
-/// *descriptor* (root-owned, not group/world-writable, a regular file, no
-/// symlink), and the bytes that passed the check are what gets staged and
-/// run. Checking a path and then executing by path left a window in which
-/// the file could be swapped; nothing can swap bytes already read.
-/// (Executing `/dev/fd/N` directly would be equivalent, but Process spawns
-/// children with all non-standard descriptors closed.)
-///
-/// Consequence worth knowing: `$0` is the staged copy's path, not the
-/// configured one — a script must not derive sibling paths from its own
-/// location. Config-load validation still checks the same ownership rules by
-/// path, where the friendlier error belongs.
+/// The script body is staged in a new root-only directory and run from there.
+/// For `path` scripts the body is read through the verified file descriptor,
+/// so the file cannot be replaced between the check and execution. `$0` is
+/// therefore the staged copy's path.
 enum ScriptAction {
     static func run(
         item: ProvisioningItem,
@@ -52,11 +42,10 @@ enum ScriptAction {
                 environment: InstallomatorAction.minimalEnvironment,
                 timeout: .seconds(item.timeout),
                 lineHandler: { line in
-                    // Every line goes to the log: a script is admin-supplied
-                    // code running as root, and its output is the only
-                    // account of what it did.
+                    // All output is logged; it is the only record of what
+                    // the script did.
                     context.logSink?("[\(item.id)] \(line)")
-                    // Lines like "status: Doing the thing" update the row.
+                    // "status: …" lines update the item's status text.
                     if spec.statusFromOutput, let text = statusText(from: line) {
                         context.statusTextHandler?(text)
                     }
@@ -66,8 +55,7 @@ enum ScriptAction {
             return ActionResult(outcome: .failed, status: .failed, message: error.localizedDescription)
         }
 
-        // stderr is where a failing script says why, so it goes to the log
-        // whatever the exit code.
+        // Logged whatever the exit code.
         for line in result.standardError.split(separator: "\n") {
             context.logSink?("[\(item.id)] stderr: \(line)")
         }
@@ -92,7 +80,7 @@ enum ScriptAction {
         return String(trimmed.dropFirst("status:".count)).trimmingCharacters(in: .whitespaces)
     }
 
-    /// Writes the script body into a fresh 0700 directory the caller removes.
+    /// Writes the body to a new 0700 directory; the caller removes it.
     private static func stage(_ body: Data) throws -> (path: String, directory: URL) {
         let directory = URL(filePath: NSTemporaryDirectory())
             .appending(path: "onboard-script-\(UUID().uuidString)")
@@ -112,15 +100,11 @@ enum ScriptAction {
         case failure(String)
     }
 
-    /// Opens the script and verifies the *descriptor*: owned by
-    /// `requiredOwner`, not writable by group or others, a regular file, and
-    /// not reached through a symlink at the final component (the old
-    /// path-based check examined a symlink's own attributes and could pass a
-    /// root-owned link to a file nobody had vetted). The returned bytes are
-    /// read from that same descriptor, so what was verified is what runs.
+    /// Opens `path` without following a final symlink, checks through the
+    /// descriptor that it is a regular file owned by `requiredOwner` and not
+    /// writable by group or others, and returns its contents.
     ///
-    /// `requiredOwner` exists for tests, which cannot mint root-owned files;
-    /// production callers use the default.
+    /// `requiredOwner` is overridable for tests.
     static func verifiedContent(of path: String, requiredOwner: uid_t = 0) -> ContentOutcome {
         let fd = open(path, O_RDONLY | O_NOFOLLOW)
         guard fd >= 0 else {

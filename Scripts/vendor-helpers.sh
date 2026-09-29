@@ -1,16 +1,10 @@
 #!/bin/zsh
 # vendor-helpers.sh — fetch and pin the bundled third-party tools.
 #
-# Installomator: snapshot of the main branch (approved decision #8). The
-# snapshot's SHA-256 is pinned in Vendor/Installomator/PINNED_SHA256 and the
-# source commit recorded, so refreshing is a deliberate re-run of this script
-# with a reviewable git diff — never a silent drift. Runtime `allowUpdate`
-# remains tagged-releases-only and is handled by the daemon, not this script.
-#
-# dockutil / desktoppr / utiluti: latest GitHub release pkg, binary extracted,
-# version + SHA-256 recorded. All Apache-2.0. Their LICENSE files are kept here
-# in Vendor/<tool>/ and copied into the app by build-pkg.sh — the binaries land
-# in Contents/Helpers bare, so nothing else would carry them.
+# Installomator: current main branch, pinned by SHA-256 and source commit.
+# dockutil, desktoppr, utiluti: binary from the latest release package, with
+# version, SHA-256 and LICENSE recorded under Vendor/<tool>/.
+# Review the resulting git diff before committing.
 
 set -euo pipefail
 
@@ -57,8 +51,7 @@ curl -fsSL "https://raw.githubusercontent.com/Installomator/Installomator/$COMMI
     -o "$DEST/LICENSE"
 chmod 0755 "$DEST/Installomator.sh"
 
-# Sanity checks before pinning: the DEBUG default and version marker must
-# still look the way our runtime handling assumes.
+# The runtime depends on these markers.
 grep -qE '^DEBUG=' "$DEST/Installomator.sh" || { echo "ERROR: DEBUG= handling changed upstream" >&2; exit 21; }
 grep -qE '^VERSION=' "$DEST/Installomator.sh" || { echo "ERROR: VERSION= marker missing" >&2; exit 21; }
 

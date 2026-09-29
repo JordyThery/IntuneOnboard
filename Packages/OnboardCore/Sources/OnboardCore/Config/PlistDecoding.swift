@@ -1,8 +1,6 @@
 import Foundation
 
-/// A tiny hand-rolled decoder over `[String: Any]` plist content.
-/// Chosen over Codable so every error carries the exact key path and the
-/// LocalizedText/IconSpec "string or dict" shapes stay simple.
+/// A decoder over plist dictionaries that reports errors with their key path.
 struct PlistDecoder {
     let dictionary: [String: Any]
     let path: String
@@ -12,10 +10,8 @@ struct PlistDecoder {
         private(set) var errors: [ConfigError] = []
         func add(_ error: ConfigError) { errors.append(error) }
 
-        /// The unknown-key ledger: which keys each node holds, and which of
-        /// them a decoder actually consumed. A key nobody reads is silently
-        /// inert — a misspelling, or a leftover from an older schema — and
-        /// silence is exactly the failure an admin cannot see.
+        /// Keys present in each node and keys read from it, for reporting
+        /// unknown keys.
         private var keysPresent: [String: Set<String>] = [:]
         private var keysRead: [String: Set<String>] = [:]
 
@@ -27,12 +23,8 @@ struct PlistDecoder {
             keysRead[path, default: []].insert(key)
         }
 
-        /// One error per present-but-never-read key, in stable path order.
-        /// `Payload*` at the root is exempt: that is Apple's profile-metadata
-        /// namespace, and refusing to run because the MDM transport left a
-        /// PayloadUUID behind would fail every Mac in a fleet over a key no
-        /// admin wrote. Only at the root — nested, it is a typo like any
-        /// other.
+        /// One error per key that was present but never read, sorted by path.
+        /// Root-level `Payload*` keys are profile metadata and are exempt.
         var unknownKeyErrors: [ConfigError] {
             keysPresent
                 .flatMap { path, present in
@@ -52,8 +44,7 @@ struct PlistDecoder {
         errors.noteNode(path: path, keys: dictionary.keys)
     }
 
-    /// Key presence, counted as a read: asking is consuming, as far as the
-    /// unknown-key audit cares.
+    /// Counts as a read for the unknown-key check.
     func has(_ key: String) -> Bool {
         errors.noteRead(path: path, key: key)
         return dictionary[key] != nil
@@ -81,7 +72,7 @@ struct PlistDecoder {
         }
     }
 
-    /// Optional typed value; records a type error when present but wrong.
+    /// Optional typed value; records a type error when the type is wrong.
     func value<T>(_ key: String, as type: T.Type, expected: String) -> T? {
         errors.noteRead(path: path, key: key)
         guard let raw = dictionary[key] else { return nil }
@@ -99,9 +90,7 @@ struct PlistDecoder {
     func stringDict(_ key: String) -> [String: String]? { value(key, as: [String: String].self, expected: "dictionary of strings") }
     func intArray(_ key: String) -> [Int]? { value(key, as: [Int].self, expected: "array of integers") }
 
-    /// A string or an array of strings — the onboarding's "scalar means
-    /// confirm, array means choose" shape. A scalar comes back as a one-element
-    /// array so callers branch on count, not on type.
+    /// A string or an array of strings, returned as an array.
     func strings(_ key: String) -> [String]? {
         errors.noteRead(path: path, key: key)
         guard let raw = dictionary[key] else { return nil }
@@ -111,8 +100,7 @@ struct PlistDecoder {
         return nil
     }
 
-    /// A dictionary whose values are each a string or an array of strings
-    /// (e.g. scheme → candidate bundle ids).
+    /// A dictionary whose values are strings or arrays of strings.
     func stringsDict(_ key: String) -> [String: [String]]? {
         errors.noteRead(path: path, key: key)
         guard let raw = dictionary[key] else { return nil }
@@ -133,7 +121,7 @@ struct PlistDecoder {
         return result
     }
 
-    /// Required string; records missingKey when absent.
+    /// Required string; records a missing-key error when absent.
     func requiredString(_ key: String) -> String? {
         errors.noteRead(path: path, key: key)
         guard dictionary[key] != nil else {

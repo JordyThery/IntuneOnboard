@@ -1,11 +1,11 @@
 import Foundation
 
-/// An icon reference from config. The accepted sources:
-/// - `symbol:<SF Symbol name>`
-/// - `name:<named image>` (`name:NSComputer`, an asset name)
+/// An icon reference:
+/// - `symbol:<SF Symbol>`
+/// - `name:<asset>`, e.g. `name:NSComputer`
 /// - an absolute path to an image or `.app`
-/// - `bundleid:<id>` (uses that app's icon)
-/// - an https URL (downloaded by the UI layer)
+/// - `bundleid:<id>`
+/// - an `https` URL
 public enum IconSpec: Equatable, Sendable {
     case symbol(String)
     case named(String)
@@ -13,8 +13,7 @@ public enum IconSpec: Equatable, Sendable {
     case bundleID(String)
     case remote(URL)
 
-    /// Parses the config string form. Returns nil for unparseable or
-    /// insecure (non-https URL, relative path) values.
+    /// nil for unparseable values, non-https URLs and relative paths.
     public init?(configString: String) {
         if let name = configString.removingPrefix("symbol:") {
             guard !name.isEmpty else { return nil }
@@ -37,7 +36,7 @@ public enum IconSpec: Equatable, Sendable {
 }
 
 extension String {
-    /// Returns the remainder after `prefix`, or nil when the prefix is absent.
+    /// The remainder after `prefix`, or nil.
     func removingPrefix(_ prefix: String) -> String? {
         guard hasPrefix(prefix) else { return nil }
         return String(dropFirst(prefix.count))

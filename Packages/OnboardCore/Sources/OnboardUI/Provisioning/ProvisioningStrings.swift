@@ -1,13 +1,9 @@
 import OnboardCore
 import SwiftUI
 
-/// Every user-facing string in the provisioning UI, in one file on purpose:
-/// the daemon emits status *codes* (`StatusKind`) and the UI turns them into
-/// text, so the translations live here and no view has to know about them.
-///
-/// `LocalizedStringResource`, not `LocalizedStringKey`: these strings come
-/// from a package's own catalog, and only the resource type carries the
-/// bundle that makes that lookup work. See `LocalizedStringResource.module`.
+/// The provisioning view's built-in strings, including the text for each
+/// `StatusKind`. `LocalizedStringResource` carries this module's bundle; see
+/// `LocalizedStringResource.module`.
 enum ProvisioningStrings {
     static var defaultTitle: LocalizedStringResource {
         .module("Setting up your Mac", comment: "Heading on the provisioning card while the run is in progress, when the profile sets no title of its own.")
@@ -51,9 +47,7 @@ enum ProvisioningStrings {
     static var helpButton: LocalizedStringResource {
         .module("Help", comment: "Accessibility label for the circled question mark that shows the support details.")
     }
-    // "About this Mac" rows. `macOS` is missing on purpose: it is Apple's
-    // product name, so the view passes it verbatim rather than offering it
-    // for translation.
+    // "About this Mac" rows. `macOS` is a product name and is not translated.
     static var chip: LocalizedStringResource {
         .module("Chip", comment: "Label in the Mac's details: the processor, e.g. \"Apple M4\".")
     }
@@ -110,9 +104,8 @@ enum ProvisioningStrings {
     static var logUnavailableText: LocalizedStringResource {
         .module("Nothing logged here yet.", comment: "Shown in place of an empty log.")
     }
-    /// The Intune tab is empty for a good reason worth stating: its agent is
-    /// installed by Intune partway through enrollment, so "nothing here"
-    /// during early provisioning is the expected state rather than a fault.
+    /// Shown while the Intune tab is empty; Intune installs its agent during
+    /// enrollment.
     static var intuneLogUnavailableText: LocalizedStringResource {
         .module(
             "No Intune log yet — its agent is installed during enrollment. Export to capture the MDM entries from the system log.",
@@ -120,7 +113,7 @@ enum ProvisioningStrings {
         )
     }
 
-    /// The card's vendor credit.
+    /// Footer credit.
     static var credit: LocalizedStringResource {
         .module("Created by Jordy Thery with ❤️", comment: "Credit line in the card's footer. The name is a person's and is not translated.")
     }
@@ -132,8 +125,7 @@ enum ProvisioningStrings {
         )
     }
 
-    /// "Microsoft Edge (step 2 of 4)" — the item being worked on, with its
-    /// place in the run.
+    /// e.g. "Microsoft Edge (step 2 of 4)".
     static func stepCaption(item: String, step: Int, total: Int) -> LocalizedStringResource {
         .module(
             "\(item) (step \(step) of \(total))",
@@ -141,21 +133,18 @@ enum ProvisioningStrings {
         )
     }
 
-    /// Singular and plural are the catalog's job, not a ternary's: the
-    /// categories differ per language, so the entry carries plural variations
-    /// and this only supplies the number.
+    /// Plural forms are defined in the String Catalog.
     static func failureCaption(count: Int) -> LocalizedStringResource {
         .module("\(count) items failed", comment: "How many items did not succeed.")
     }
 
-    /// The header's failure count, next to "N of M complete".
+    /// Failure count, next to "N of M complete".
     static func needsAttention(count: Int) -> LocalizedStringResource {
         .module("\(count) needs attention", comment: "In the header, how many items failed and need someone to look at them. Carries plural variants per language.")
     }
 
-    /// One sentence carrying the organization's own contact details, rather
-    /// than a fixed prefix glued to them: the two halves do not keep this
-    /// order in every language.
+    /// One sentence with the organization's contact details, so word order
+    /// can vary by language.
     static func contactSupport(details: String) -> LocalizedStringResource {
         .module(
             "Your Mac still works. Please contact IT to finish setting it up: \(details)",
@@ -163,7 +152,7 @@ enum ProvisioningStrings {
         )
     }
 
-    /// The same message for a profile that configures no `supportText`.
+    /// Used when no `supportText` is configured.
     static var contactSupportGeneric: LocalizedStringResource {
         .module(
             "Your Mac still works. Please contact your IT service desk to finish setting it up.",
@@ -171,8 +160,7 @@ enum ProvisioningStrings {
         )
     }
 
-    /// The headline for a phase; nil means the configured title is shown
-    /// instead (the run is still in progress and has its own heading).
+    /// The heading for a phase; nil shows the configured title.
     static func headline(for phase: ProvisioningDisplay.Phase) -> LocalizedStringResource? {
         switch phase {
         case .connecting, .waitingForConfig, .preflight, .running: nil
@@ -182,7 +170,7 @@ enum ProvisioningStrings {
         }
     }
 
-    /// The "what's happening right now" line under the progress bar.
+    /// The current activity, below the progress bar.
     static func activity(for phase: ProvisioningDisplay.Phase) -> LocalizedStringResource? {
         switch phase {
         case .connecting: connecting

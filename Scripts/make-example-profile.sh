@@ -1,11 +1,6 @@
 #!/bin/zsh
-# make-example-profile.sh — wrap the annotated example plist in a Custom
-# profile, so the two deployment routes can never disagree.
-#
-# The .plist is the source of truth and is hand-maintained with its comments;
-# the .mobileconfig is generated from it. XML comments do not survive plist
-# serialization, so the profile carries a pointer to the plist instead of the
-# annotations. DeployExampleTests fails if the two drift.
+# make-example-profile.sh — generate the example .mobileconfig from the
+# annotated example .plist. DeployExampleTests fails if the two differ.
 
 set -euo pipefail
 
@@ -20,7 +15,7 @@ import sys
 source, destination = sys.argv[1], sys.argv[2]
 domain = "be.jordythery.intuneonboard"
 
-# Stable UUIDs: a changing UUID makes MDM treat this as a different profile.
+# Fixed UUIDs: a new UUID makes MDM treat the profile as a different one.
 payload_uuid = "B7E4D9C1-3F62-4A8E-9D05-7C1E4B2A6F31"
 profile_uuid = "A1C83E57-9B04-42D6-8E7F-2D5B60C9A814"
 

@@ -2,14 +2,11 @@ import ArgumentParser
 import Foundation
 import OnboardCore
 
-/// Query/maintenance subcommands for onboardd. The `run` entry point stays in
-/// the daemon target (it owns session monitoring); main.swift dispatches
-/// everything else here.
+/// `onboardd` subcommands other than `run`, which is in the daemon target.
 public enum OnboardCommands {
     public static func run(arguments: [String]) -> Never {
         Root.main(arguments)
-        // ParsableCommand.main() calls exit() itself; this is unreachable
-        // but satisfies Never on toolchains where main is typed () -> Void.
+        // Unreachable: main() exits. Satisfies the Never return type.
         exit(0)
     }
 
@@ -71,29 +68,21 @@ struct Status: ParsableCommand {
         }
     }
 
-    /// The onboarding state of whoever is at the keyboard. Reported because
-    /// an attribute covering only the device half would say "complete" about
-    /// a Mac whose user still has every step in front of them.
-    ///
-    /// `nil` user means there is nobody to report on: during provisioning the
-    /// console belongs to Setup Assistant or the login window, which is a
-    /// normal state rather than a fault.
+    /// The console user's onboarding state; nil when no user is logged in
+    /// (for example during Setup Assistant).
     static func consoleUserOnboarding() -> (user: String, state: UserState?)? {
         guard let console = ConsoleUser.current(), console.isRealUser else { return nil }
         guard let store = StateStore.forUser(named: console.name) else { return nil }
         return (console.name, (try? store.loadUserState()) ?? nil)
     }
 
-    /// One line, because that is what an Intune custom attribute stores and
-    /// what an administrator reads in a list of hundreds of Macs.
+    /// One line, as stored by an Intune custom attribute.
     static func singleLine(
         device: DeviceState?,
         onboarding: (user: String, state: UserState?)?,
         ineligible: Bool = false
     ) -> String {
-        // Out of scope is its own answer. Without it a Mac the profile
-        // deliberately refuses reports "not started", which in a list of
-        // hundreds is indistinguishable from one the package never reached.
+        // Distinguishes an out-of-scope Mac from one not yet provisioned.
         guard !ineligible else {
             return "provisioning: not applicable (requireADE)"
         }
@@ -143,8 +132,7 @@ struct Status: ParsableCommand {
             let deviceCompletedAt: Date?
             let lastRunAt: Date?
             let items: [String: ItemRecord]
-            /// Absent while the console belongs to Setup Assistant or the
-            /// login window — there is no user to report on yet.
+            /// Absent when no user is logged in.
             let onboarding: Onboarding?
         }
         let snapshot = Snapshot(
@@ -185,8 +173,7 @@ struct Reset: ParsableCommand {
         guard device || !users.isEmpty else {
             throw ValidationError("Pass --device and/or --user <name>.")
         }
-        // The name lands in a filename (`state/user-<name>.json`); a stray
-        // separator could point the removal somewhere else entirely.
+        // Used in a file name.
         for user in users where user.contains("/") || user.contains("..") {
             throw ValidationError("Not a valid account name: \(user)")
         }

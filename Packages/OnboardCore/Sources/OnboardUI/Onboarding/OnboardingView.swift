@@ -2,11 +2,8 @@ import AppKit
 import OnboardCore
 import SwiftUI
 
-/// Onboarding, the per-user stage: every step visible at once as a card,
-/// completed in place. The user sees the whole scope up front instead of
-/// discovering it a row at a time; the active card opens to hold its own
-/// interaction; a single Continue advances once the active step is satisfied.
-/// No sidebar, no detail pane, no second thing to look at.
+/// The onboarding window: every step as a card, completed in place. The
+/// active card holds the step's controls; Continue advances once it is done.
 public struct OnboardingView: View {
     @State private var model: OnboardingViewModel
     private let onDismiss: (() -> Void)?
@@ -24,10 +21,8 @@ public struct OnboardingView: View {
         VStack(spacing: 0) {
             header
 
-            // The card list only exists once the engine has derived the
-            // steps: populating a live ForEach under `.animation` fades the
-            // cards in from nothing, and the very first frame the user (or a
-            // preview snapshot) sees is an empty window with a counter.
+            // Shown once the steps are evaluated, so the first frame is not
+            // an empty list.
             if model.steps.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -57,11 +52,8 @@ public struct OnboardingView: View {
 
             footer
         }
-        // The same size as the provisioning window, so the two stages read as
-        // one product. The ideal matters as much as the minimum: without it
-        // SwiftUI resized the window to its own preference after
-        // WindowPresenter had set it, which is how the first hardware run got
-        // a ballooned window.
+        // Same size as the provisioning window. The ideal size prevents
+        // SwiftUI from resizing the window after it is configured.
         .frame(minWidth: 800, idealWidth: 800, minHeight: 600, idealHeight: 600)
         .background(Color(.windowBackgroundColor))
         .tint(accent)
@@ -77,9 +69,7 @@ public struct OnboardingView: View {
                 DryRunBadge()
             }
 
-            // The organization's logo when configured — the same artwork as
-            // the provisioning header, so both stages carry one brand — else
-            // the app icon.
+            // The organization logo, or the app icon.
             if let logo = model.headerLogo {
                 ItemIcon(spec: logo, size: 42)
             } else {
@@ -131,8 +121,7 @@ public struct OnboardingView: View {
                 }
                 .keyboardShortcut(.defaultAction)
             } else {
-                // The whole progression model: one button, disabled until the
-                // active step is satisfied.
+                // Enabled once the active step is done.
                 Button(OnboardingStrings.continueButton) {
                     model.advance()
                 }
@@ -143,20 +132,16 @@ public struct OnboardingView: View {
         .controlSize(.large)
         .padding(.horizontal, 22)
         .padding(.top, 14)
-        // More below than above, and not symmetric on purpose: on hardware
-        // the window's usable height runs ~14 pt short of the layout's idea
-        // of it, and a symmetric footer put Doorgaan half under the bottom
-        // edge. The old sidebar layout carried the same compensation.
+        // Extra bottom padding: the usable window height is slightly less
+        // than the layout assumes, which clipped the button.
         .padding(.bottom, 28)
     }
 }
 
 // MARK: - Card
 
-/// One step as a card. Completed cards collapse to a line with a green check;
-/// the active card opens and holds the step's own interaction; the rest wait,
-/// clickable, so any step can be brought forward out of order — the queue
-/// keeps a failed one reachable rather than blocking on it.
+/// One step. Completed cards collapse; the active card shows the step's
+/// controls; other cards can be opened in any order.
 private struct StepCard: View {
     let step: StepState
     let model: OnboardingViewModel
@@ -167,8 +152,6 @@ private struct StepCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 13) {
-                // The per-step icon: the one thing that says at a glance what
-                // a step is about before reading it.
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(isDone ? AnyShapeStyle(Color.green.opacity(0.14))
                                  : AnyShapeStyle(.tint.opacity(0.13)))
@@ -187,9 +170,7 @@ private struct StepCard: View {
                     Text(step.item.title?.resolved() ?? step.id)
                         .font(.headline)
                         .foregroundStyle(isDone ? .secondary : .primary)
-                    // Only the open card shows its full body: a welcome
-                    // paragraph in every collapsed card would push the other
-                    // steps off the window.
+                    // Full description only on the open card.
                     if let subtitle = step.item.subtitle?.resolved() {
                         Text(subtitle)
                             .font(.subheadline)
@@ -198,9 +179,7 @@ private struct StepCard: View {
                             .lineLimit(isActive ? nil : 1)
                     }
                     if isActive, step.record?.outcome == .failed, let message = step.record?.message {
-                        // One localized sentence carrying the reason, rather
-                        // than a localized prefix glued to it: the two halves
-                        // don't keep this order in every language.
+                        // One localized sentence, so word order can vary.
                         Text(OnboardingStrings.failure(message: message))
                             .font(.subheadline)
                             .foregroundStyle(.red)
@@ -241,8 +220,7 @@ private struct StepCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(step.item.title?.resolved() ?? step.id))
-        // `verbatim:` — a bare "" is a *localizable* literal, and Xcode's
-        // extraction plants an empty entry in the String Catalog for it.
+        // `verbatim:` keeps the empty string out of the String Catalog.
         .accessibilityValue(isDone ? Text(OnboardingStrings.completedSection) : Text(verbatim: ""))
         .accessibilityAddTraits(isActive ? [] : .isButton)
     }

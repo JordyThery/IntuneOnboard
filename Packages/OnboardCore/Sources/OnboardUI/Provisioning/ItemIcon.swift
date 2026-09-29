@@ -2,17 +2,13 @@ import AppKit
 import OnboardCore
 import SwiftUI
 
-/// Renders an `IconSpec` from configuration. Anything that can't be resolved
-/// (an app that isn't installed yet, a missing file, a download that fails)
-/// falls back to a symbol rather than leaving a hole in the row — Provisioning
-/// routinely runs before the apps it names exist on disk.
+/// Renders an `IconSpec`. Unresolvable icons show a placeholder symbol;
+/// apps often are not installed yet when provisioning starts.
 struct ItemIcon: View {
     let spec: IconSpec?
     var fallbackSymbol = "app.dashed"
     var size: CGFloat = 32
-    /// Symbols follow the tint by default. The header band needs them white,
-    /// because tint-on-tint is invisible — which is exactly how the first
-    /// draft lost the logo against the blue.
+    /// Symbols use the tint by default; set white for use on the accent colour.
     var symbolStyle: AnyShapeStyle?
 
     var body: some View {
@@ -54,10 +50,8 @@ struct ItemIcon: View {
     }
 }
 
-/// Downloads an icon once per URL and keeps it for the life of the process.
-///
-/// `AsyncImage` would refetch every time the view is rebuilt, and this view
-/// rebuilds on every progress poll — a second, for the whole run.
+/// Downloads each icon URL once per process. `AsyncImage` would refetch on
+/// every view rebuild, which happens on every progress update.
 struct RemoteIcon<Fallback: View>: View {
     let url: URL
     let size: CGFloat
@@ -75,7 +69,7 @@ struct RemoteIcon<Fallback: View>: View {
             } else if failed {
                 fallback
             } else {
-                // Nothing yet: hold the space so tiles don't jump.
+                // Reserve the space while loading.
                 Color.clear
             }
         }
@@ -90,7 +84,7 @@ struct RemoteIcon<Fallback: View>: View {
     }
 }
 
-/// Process-wide icon cache. Small by nature — one image per configured item.
+/// Process-wide icon cache.
 actor RemoteIconCache {
     static let shared = RemoteIconCache()
 
@@ -116,7 +110,7 @@ actor RemoteIconCache {
             images[url] = image
             return image
         } catch {
-            // Expected during Setup Assistant if the network isn't up yet.
+            // Common during Setup Assistant before the network is up.
             OnboardLog.app.notice("""
             icon \(url.lastPathComponent, privacy: .public) failed: \
             \(error.localizedDescription, privacy: .public)
@@ -128,7 +122,7 @@ actor RemoteIconCache {
 }
 
 private extension NSWorkspace {
-    /// nil while the app is still being installed by provisioning.
+    /// nil while the app is not yet installed.
     func applicationIcon(bundleIdentifier: String) -> NSImage? {
         guard let url = urlForApplication(withBundleIdentifier: bundleIdentifier) else { return nil }
         return icon(forFile: url.path)

@@ -2,12 +2,8 @@ import AppKit
 import OnboardCore
 import SwiftUI
 
-/// The ⌘L log panel: a narrow tall column with inline tabs, the message
-/// given the width, and the time in its own column.
-///
-/// Its whole reason for existing is that during Setup Assistant there is no
-/// Terminal and no Console — so when provisioning misbehaves in front of a
-/// customer, this is the only way to see why without wiping the Mac.
+/// The ⌘L log panel: tabs per log file, with times in a separate column.
+/// During Setup Assistant it is the only way to view logs.
 public struct LogViewer: View {
     private let onClose: () -> Void
 
@@ -34,8 +30,7 @@ public struct LogViewer: View {
             footer
         }
         .task(id: Refresh(file: selection, summarize: summarize)) {
-            // Re-read while the panel is open: a run in progress keeps
-            // writing, and a static snapshot would mislead.
+            // Re-read periodically while open.
             while !Task.isCancelled {
                 lines = load()
                 try? await Task.sleep(for: .seconds(2))
@@ -45,9 +40,7 @@ public struct LogViewer: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            // `String()` picks the non-localizable overload: a literal ""
-            // is a LocalizedStringKey, and extraction plants an empty entry
-            // in the String Catalog for it.
+            // `String()` keeps an empty entry out of the String Catalog.
             Picker(String(), selection: $selection) {
                 ForEach(LogFile.all) { file in
                     Text(file.title).tag(file.id)
@@ -65,8 +58,7 @@ public struct LogViewer: View {
             .buttonStyle(.borderless)
             .help(ProvisioningStrings.exportLogs)
         }
-        // Leading inset clears the traffic lights: the tabs sit in the
-        // titlebar beside them.
+        // Leading inset for the window buttons; the tabs are in the title bar.
         .padding(.leading, 72)
         .padding(.trailing, 12)
         .padding(.vertical, 10)
@@ -92,7 +84,7 @@ public struct LogViewer: View {
                 }
             }
             .onChange(of: lines.last?.id) { _, last in
-                // Follow the tail, which is where a live run is.
+                // Keep the newest lines in view.
                 guard let last else { return }
                 withAnimation(.easeOut(duration: 0.2)) {
                     scroller.scrollTo(last, anchor: .bottom)
@@ -160,10 +152,8 @@ public struct LogViewer: View {
         .padding(.vertical, 9)
     }
 
-    /// Async because the unified-log capture shells out: enrollment's own
-    /// story lives there rather than in any file, and it is worth the couple
-    /// of seconds. The files are copied first, so a slow `log show` can never
-    /// cost us the logs we already have.
+    /// Copies the log files, then captures the MDM unified log, which can
+    /// take a few seconds.
     private func export() async {
         do {
             let folder = try LogInspection.export()
@@ -178,8 +168,7 @@ public struct LogViewer: View {
     }
 
     private func load() -> [LogLine] {
-        // An Intune log that doesn't exist yet is a normal state, not an
-        // error: the agent arrives partway through enrollment.
+        // Normal before Intune installs its agent.
         guard let url = file.resolvedURL() else { return [] }
 
         var text = LogInspection.removeNoise(
@@ -192,7 +181,7 @@ public struct LogViewer: View {
         return LogInspection.lines(text, levels: file.levels)
     }
 
-    /// Restarts the refresh loop when either input changes.
+    /// Restarts refreshing when either input changes.
     private struct Refresh: Equatable {
         let file: String
         let summarize: Bool
@@ -200,8 +189,7 @@ public struct LogViewer: View {
 }
 
 extension View {
-    /// Small helper so views can react to a NotificationCenter name without
-    /// each one wiring up a publisher.
+    /// Runs an action when a notification is posted.
     func onReceive(of name: Notification.Name, perform action: @escaping () -> Void) -> some View {
         task {
             for await _ in NotificationCenter.default.notifications(named: name).map({ _ in () }) {

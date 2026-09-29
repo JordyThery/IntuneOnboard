@@ -1,16 +1,11 @@
 #!/bin/zsh
-# Intune custom attribute — reports Intune Onboard's state for this Mac.
+# Intune custom attribute: Intune Onboard status for this Mac.
 #
 # Devices → Scripts and remediations → macOS custom attributes.
 #   Attribute type: String
-#   Run script as signed-in user: NO (it must be root to read the device state)
+#   Run script as signed-in user: No
 #
-# Whatever this prints on stdout becomes the attribute's value, verbatim, so
-# it prints exactly one line and nothing else. It always exits 0: a non-zero
-# exit is reported by Intune as a script failure, which is a different thing
-# from "this Mac has not been provisioned" and would hide the latter.
-#
-# Example values:
+# Prints one line and always exits 0. Example values:
 #   provisioning: complete (4/4) · onboarding: complete (jordy)
 #   provisioning: complete (4/4) · onboarding: in progress (jordy, 3/8)
 #   provisioning: failed (1 failed, 4/4 finished) · onboarding: no console user
@@ -21,18 +16,12 @@ set -u
 ONBOARDD="/Applications/Utilities/Intune Onboard.app/Contents/MacOS/onboardd"
 
 if [[ ! -x "$ONBOARDD" ]]; then
-    # The expected answer on a Mac the package has not reached yet, and the
-    # one an administrator most needs to be able to filter on.
     echo "not installed"
     exit 0
 fi
 
-# Not named `status`: in zsh that is a read-only alias for $?, and assigning
-# to it fails — which produced an empty attribute value for every Mac until a
-# test caught it.
-#
-# stderr is discarded rather than merged: a warning on the way to a perfectly
-# good answer must not end up inside the attribute's value.
+# Not `status`, which is read-only in zsh. stderr is discarded to keep the
+# value to a single line.
 summary=$("$ONBOARDD" status 2>/dev/null)
 
 if [[ -z "$summary" ]]; then
@@ -40,6 +29,6 @@ if [[ -z "$summary" ]]; then
     exit 0
 fi
 
-# First line only, for the same reason.
+# First line only.
 echo "${summary%%$'\n'*}"
 exit 0

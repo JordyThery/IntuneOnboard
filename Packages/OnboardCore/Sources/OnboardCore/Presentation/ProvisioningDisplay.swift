@@ -1,12 +1,9 @@
 import Foundation
 
-/// Everything the provisioning UI draws: the configuration supplies the static part
-/// (order, titles, icons), the daemon's snapshot supplies the live part
-/// (outcome, status, status text). A plain value type with no UI and no I/O, so
-/// the merge rules are unit-testable and the views stay dumb.
+/// What the provisioning view shows, merged from the configuration (order,
+/// titles, icons) and the daemon's snapshot (outcome and status).
 public struct ProvisioningDisplay: Equatable, Sendable {
-    /// Where the run is. `connecting` is UI-only: the daemon hasn't answered
-    /// yet and there is no progress.json to fall back on.
+    /// Run state. `connecting`: no answer from the daemon and no progress file.
     public enum Phase: String, Equatable, Sendable {
         case connecting
         case waitingForConfig
@@ -37,14 +34,13 @@ public struct ProvisioningDisplay: Equatable, Sendable {
 
     public struct Row: Equatable, Sendable, Identifiable {
         public let id: String
-        /// Falls back to the item id when config carries no title.
+        /// The item id when no title is configured.
         public let title: String
         public let subtitle: String?
         public let icon: IconSpec?
         public let outcome: ItemOutcome
         public let status: StatusKind
-        /// Verbatim line from a script's `status:` output; overrides the
-        /// localized status label when present.
+        /// A script's `status:` text; shown instead of the status label.
         public let statusText: String?
         public let required: Bool
 
@@ -72,14 +68,14 @@ public struct ProvisioningDisplay: Equatable, Sendable {
     public struct Header: Equatable, Sendable {
         public let organizationName: String?
         public let logo: IconSpec?
-        /// #RRGGBB from config; the UI tints itself with it.
+        /// `#RRGGBB`.
         public let accentColor: String?
-        /// nil means "use the built-in localized default".
+        /// nil uses the built-in text.
         public let title: String?
         public let message: String?
         public let supportText: String?
         public let supportURL: URL?
-        /// Drives the circled question mark and its QR code.
+        /// The help button.
         public let help: Configuration.Help?
 
         public init(
@@ -105,16 +101,15 @@ public struct ProvisioningDisplay: Equatable, Sendable {
 
     public let phase: Phase
     public let header: Header
-    /// In configuration order, disabled items removed.
+    /// In configuration order, without disabled items.
     public let rows: [Row]
     public let deviceInfo: DeviceInfo?
-    /// Config's `allowContinueOnError`: lets the user dismiss a failed run.
+    /// `allowContinueOnError`.
     public let allowContinueOnError: Bool
-    /// Config's `dryRun`: the UI wears a badge so a dry run can never be
-    /// mistaken for a real one.
+    /// `dryRun`; shows a badge.
     public let dryRun: Bool
     public let updatedAt: Date?
-    /// When the run began — drives the elapsed time in "About this Mac".
+    /// Run start, for the elapsed time in "About this Mac".
     public let startedAt: Date?
 
     public init(
@@ -149,30 +144,27 @@ public struct ProvisioningDisplay: Equatable, Sendable {
         rows.filter { $0.outcome == .failed }.count
     }
 
-    /// Determinate progress once there are rows; before that the phase decides
-    /// (nothing done while waiting, everything done once finished cleanly).
+    /// Fraction of items finished; before items exist, based on the phase.
     public var fractionComplete: Double {
         guard totalCount > 0 else { return phase == .completed ? 1 : 0 }
         return Double(completedCount) / Double(totalCount)
     }
 
-    /// The item being worked on, for the "what's happening now" line.
+    /// The item currently running.
     public var currentRow: Row? {
         rows.first { $0.outcome == .running }
     }
 
-    /// Retry is offered only when a finished run left failed items behind —
-    /// the daemon refuses the request in any other state anyway.
+    /// Offered when a finished run has failed items.
     public var canRetry: Bool {
         phase == .completedWithErrors && failedCount > 0
     }
 
     // MARK: - Merge
 
-    /// Builds the display from config + snapshot. Either may be missing: with
-    /// no snapshot the rows render as pending, with no config the snapshot's
-    /// ids stand in for titles (the daemon may hold a profile the app can't
-    /// read yet).
+    /// Merges configuration and snapshot; either may be absent. Without a
+    /// snapshot items are pending; without a configuration ids are used as
+    /// titles.
     public static func make(
         configuration: Configuration?,
         snapshot: ProgressSnapshot?,

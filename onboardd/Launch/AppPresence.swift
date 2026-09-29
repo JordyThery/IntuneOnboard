@@ -2,19 +2,11 @@ import Foundation
 import OnboardCore
 import os
 
-/// Is the UI still on screen in a given session? The provisioning window is a
-/// kiosk, but it can still be killed (⌘Q before M3, force-quit or a crash
-/// after), and a vanished window looks to the user like onboarding stopped.
+/// Whether the UI is running in a given session.
 enum AppPresence {
-    /// `pgrep -U <uid> -f <pattern>`: the daemon runs as root and sees every
-    /// process, and the `-U` filter keeps the daemon's own path — which lives
-    /// inside the same bundle — from matching itself.
-    ///
-    /// `-f` takes a *regex* matched anywhere in the command line, and an app
-    /// path is full of regex metacharacters (`.app`) — unescaped, any command
-    /// line those happened to match reported the app as running, which
-    /// suppressed the relaunch. Escaped and anchored: the command line must
-    /// *be* the path, optionally followed by arguments.
+    /// Matches the app's command line exactly: `-f` takes a regex, so the path
+    /// is escaped and anchored. `-U` excludes the daemon, which lives in the
+    /// same bundle.
     static func isAppRunning(uid: uid_t, executablePath: String) -> Bool {
         let pattern = "^" + NSRegularExpression.escapedPattern(for: executablePath) + "( |$)"
         let process = Process()
@@ -25,8 +17,7 @@ enum AppPresence {
         do {
             try process.run()
         } catch {
-            // Without an answer, assume it is running: a wrong "no" would
-            // relaunch the app on top of itself every poll.
+            // Assume running, so a failed check never relaunches a running app.
             OnboardLog.launch.error("pgrep failed: \(error.localizedDescription, privacy: .public)")
             return true
         }

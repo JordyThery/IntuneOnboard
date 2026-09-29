@@ -1,9 +1,7 @@
 #!/bin/zsh
-# verify-installomator.sh — integrity gate for the vendored Installomator.
-# Fails (exit 21) when the file's SHA-256 no longer matches the pin or its
-# DEBUG handling changed. Called from build-pkg.sh before packaging; also
-# safe to run standalone. A unit test mirrors this check so `swift test`
-# catches drift too.
+# verify-installomator.sh — check the vendored Installomator against its pin.
+# Exits 21 on a checksum mismatch or changed DEBUG handling. Run by
+# build-pkg.sh.
 
 set -euo pipefail
 
@@ -24,8 +22,7 @@ if [[ "$ACTUAL" != "$EXPECTED" ]]; then
     exit 21
 fi
 
-# The runtime relies on `eval`'d KEY=value args where the *last* DEBUG wins.
-# If upstream ever changes how DEBUG is consumed, stop the line.
+# The runtime appends DEBUG=0 and relies on the last assignment winning.
 grep -qE '^DEBUG=' "$SCRIPT" || { echo "ERROR: DEBUG= default missing from Installomator.sh" >&2; exit 21; }
 grep -qE 'eval' "$SCRIPT" || { echo "ERROR: argument eval handling changed in Installomator.sh" >&2; exit 21; }
 

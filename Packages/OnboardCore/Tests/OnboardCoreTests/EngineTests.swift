@@ -144,10 +144,7 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(snapshot.completedCount == 2)
     }
 
-    /// The run's narration has to reach `onboard.log`, which is the only log
-    /// the ⌘L panel can read during Setup Assistant. It went to the unified
-    /// log alone, so the panel showed the daemon's two startup lines and
-    /// nothing about the items at all.
+    /// Item transitions reach the run log.
     @Test func everyItemTransitionReachesTheRunLog() async throws {
         let store = makeStore()
         defer { try? store.reset() }
@@ -169,11 +166,8 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(lines.contains { $0.hasPrefix("item a: success") })
     }
 
-    /// launchd re-spawns the daemon on demand and the card polls every
-    /// second, so a failed run restarts within seconds — self-healing when
-    /// the fault was transient, an install storm when it is not. After three
-    /// attempts the item is left alone, still failed and still blocking the
-    /// marker.
+    /// A failing item runs at most three times automatically, and still
+    /// withholds the marker.
     @Test func aFailingItemStopsBeingRetriedAfterThreeAttempts() async throws {
         let store = makeStore()
         defer { try? store.reset() }
@@ -190,7 +184,7 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
             sleep: { _ in }
         )
 
-        // Each pass is one fresh daemon, as launchd would spawn it.
+        // Each pass is a new daemon.
         for _ in 0..<5 {
             _ = await ProvisioningEngine(configuration: config, store: store, context: context).run()
         }
@@ -201,18 +195,15 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
                 "the fourth and fifth runs must not execute it again")
         #expect(state.completedAt == nil, "a capped failure still withholds the marker")
 
-        // Try again clears the count, so the item runs once more.
+        // Try again resets the count.
         _ = await ProvisioningEngine(
             configuration: config, store: store, context: context, clearAttemptCounts: true
         ).run()
         #expect(try store.loadDeviceState()?.items["bad"]?.attempts == 1)
     }
 
-    /// A `.running` record is a daemon that died mid-item. The failure cap
-    /// only ever saw clean failures, so an item that reliably took the daemon
-    /// down with it re-ran on every spawn, forever. Out of attempts, the
-    /// engine now records the interruption as the failure it was — without
-    /// executing the item again — so the run can settle.
+    /// An item interrupted as many times as the limit is recorded as failed,
+    /// without running again.
     @Test func anItemInterruptedAtTheCapIsRecordedFailedNotReRun() async throws {
         let store = makeStore()
         defer { try? store.reset() }
@@ -241,13 +232,13 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(record.outcome == .failed)
         #expect(record.attempts == ProvisioningEngine.maxAutomaticAttempts)
         #expect(result.markerWritten == false)
-        // The verdict now settles: no further automatic work remains.
+        // No automatic work remains.
         #expect(!ProvisioningEngine.hasAutomaticWorkRemaining(
             items: config.provisioning?.items ?? [],
             records: try #require(try store.loadDeviceState()).items
         ))
 
-        // Below the cap, an interruption is still unfinished work: it re-runs.
+        // Below the limit, an interrupted item runs again.
         var young = DeviceState()
         young.items["crashy"] = ItemRecord(outcome: .running, status: .running, attempts: 1)
         try store.saveDeviceState(young)
@@ -256,10 +247,8 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(try store.loadDeviceState()?.items["crashy"]?.outcome == .success)
     }
 
-    /// The item cap stops the item being re-executed; it does not stop the
-    /// daemon being re-spawned and running the whole pipeline again. On
-    /// hardware that reset the card to "checking this Mac…" every ten
-    /// seconds and wiped its buttons, and renamed the Mac each cycle.
+    /// A settled run reports no remaining work, so the daemon does not
+    /// repeat preflight and device naming.
     @Test func aSettledRunReportsNoWorkRemaining() {
         let items = [
             ProvisioningItem(id: "ok", kind: .wait(seconds: 1, message: nil)),
@@ -278,20 +267,17 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
             "bad": ItemRecord(outcome: .failed, status: .failed, attempts: capped - 1),
         ]))
 
-        // Never attempted at all.
+        // Never attempted.
         #expect(ProvisioningEngine.hasAutomaticWorkRemaining(items: items, records: [:]))
 
-        // A daemon that died mid-item left `running` behind: unfinished
-        // work, not a verdict.
+        // Interrupted: unfinished.
         #expect(ProvisioningEngine.hasAutomaticWorkRemaining(items: items, records: [
             "ok": ItemRecord(outcome: .running, status: .running, attempts: 1),
             "bad": ItemRecord(outcome: .failed, status: .failed, attempts: capped),
         ]))
     }
 
-    /// A device.json from a build that predates the counter has to keep
-    /// decoding: failing would hand the daemon a blank state and re-provision
-    /// a Mac that was already finished.
+    /// Records without `attempts` still decode.
     @Test func aRecordWithoutAnAttemptCountStillDecodes() throws {
         let json = """
         {"outcome":"success","status":"done","detail":{},"updatedAt":"2026-09-19T06:00:00Z"}
@@ -306,7 +292,7 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
     @Test func requiredFailureBlocksMarkerOptionalDoesNot() async throws {
         let store = makeStore()
         defer { try? store.reset() }
-        // First invocation fails (required item), second succeeds… order matters.
+        // The first run fails the required item; the second succeeds.
         let runner = FakeProcessRunner(results: [
             ProcessResult(exitCode: 1, standardOutput: "", standardError: "boom", timedOut: false),
             ProcessResult(exitCode: 0, standardOutput: "", standardError: "", timedOut: false),
@@ -322,7 +308,7 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(result.exitCode == .completedWithErrors)
         #expect(result.failedRequiredIDs == ["req"])
 
-        // Optional failure only: marker must be written.
+        // Only an optional item failed: the marker is written.
         let store2 = makeStore()
         defer { try? store2.reset() }
         let runner2 = FakeProcessRunner(results: [
@@ -354,7 +340,7 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(state.items["off"]?.outcome == .skipped)
         #expect(state.items["flaky"]?.outcome == .failed)
 
-        // Second pass: only the failed item runs again.
+        // Only the failed item runs again.
         let retryRunner = FakeProcessRunner()
         let context2 = ActionContext(processRunner: retryRunner, installomatorPath: "/fake/i.sh", fileExists: { _ in true }, sleep: { _ in })
         let result = await ProvisioningEngine(configuration: config, store: store, context: context2).run()
@@ -366,8 +352,8 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(state.completedAt != nil)
     }
 
-    /// The profile's DEBUG key: nothing executes, nothing persists, the
-    /// marker is withheld — but the run renders as a clean success.
+    /// A dry run executes and saves nothing, withholds the marker, and
+    /// reports success.
     @Test func dryRunExecutesNothingAndPersistsNothing() async throws {
         let store = makeStore()
         defer { try? store.reset() }
@@ -380,24 +366,23 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
 
         let result = await ProvisioningEngine(configuration: config, store: store, context: context).run()
 
-        // Simulated, not executed: even the failing script never ran.
+        // Nothing ran, including the failing script.
         #expect(runner.invocations.isEmpty)
         #expect(!result.markerWritten)
         #expect(result.dryRun)
         #expect(result.exitCode == .success)
 
-        // Nothing on disk that outlives the run: no device state, no marker.
+        // No state or marker on disk.
         #expect(try store.loadDeviceState() == nil)
 
-        // But the UI got a complete, successful run to render.
+        // Progress shows a completed run.
         let snapshot = try #require(ProgressSnapshot.read(from: store.progressFileURL))
         #expect(snapshot.engineState == .completed)
         #expect(snapshot.completedCount == 2)
         #expect(snapshot.items.allSatisfy { $0.outcome == .success })
     }
 
-    /// A dry run on a Mac with real partial state must neither reuse nor
-    /// disturb it: every item simulates, and the state file stays as it was.
+    /// A dry run ignores and leaves untouched any existing state.
     @Test func dryRunLeavesExistingRealStateUntouched() async throws {
         let store = makeStore()
         defer { try? store.reset() }

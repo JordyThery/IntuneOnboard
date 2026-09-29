@@ -1,7 +1,7 @@
 import OnboardCore
 import SwiftUI
 
-/// How one row's outcome looks. `symbol == nil` means "show a spinner".
+/// How a row's outcome is shown. `symbol == nil` shows a spinner.
 struct RowAppearance {
     let symbol: String?
     let tint: Color
@@ -17,7 +17,7 @@ struct RowAppearance {
         case .skipped:
             RowAppearance(symbol: "minus.circle", tint: .secondary)
         case .failed:
-            // An optional item failing is not a red flag: the marker ignores it.
+            // Optional failures do not affect completion.
             required
                 ? RowAppearance(symbol: "exclamationmark.circle.fill", tint: .red)
                 : RowAppearance(symbol: "exclamationmark.circle", tint: .orange)
@@ -26,8 +26,7 @@ struct RowAppearance {
 }
 
 extension Color {
-    /// Parses the `#RRGGBB` form the configuration uses for
-    /// `organization.accentColor`. Returns nil for anything else.
+    /// Parses `#RRGGBB`; nil otherwise.
     init?(hexRGB: String) {
         let digits = hexRGB.hasPrefix("#") ? String(hexRGB.dropFirst()) : hexRGB
         guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }

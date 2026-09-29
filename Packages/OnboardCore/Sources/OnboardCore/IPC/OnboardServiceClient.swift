@@ -1,14 +1,12 @@
 import Foundation
 
-/// App-side half of the XPC pair. Talks to the daemon's Mach service and falls
-/// back to the root-owned `progress.json` mirror whenever the daemon isn't
-/// reachable — which is normal twice in a run: before launchd has started it,
-/// and after it exits with its verdict while the UI is still on screen.
+/// The app's XPC client. Falls back to `progress.json` when the daemon is not
+/// running, which is normal before it starts and after it exits.
 public actor OnboardServiceClient: ProgressProviding {
     private let machServiceName: String
     private let progressFileURL: URL
     private var connection: NSXPCConnection?
-    /// The daemon being absent is expected, so log it once instead of per poll.
+    /// Logged once, not on every poll.
     private var loggedUnavailable = false
 
     public init(
@@ -55,7 +53,7 @@ public actor OnboardServiceClient: ProgressProviding {
 
     // MARK: - onboarding root operations
 
-    /// Errors from the daemon's side of a root operation, or its absence.
+    /// A root operation failed, or the daemon was unreachable.
     public struct RootOperationError: LocalizedError {
         public let message: String
         public var errorDescription: String? { message }
@@ -89,16 +87,14 @@ public actor OnboardServiceClient: ProgressProviding {
 
     // MARK: - Connection
 
-    /// `.privileged` because the listener lives in a LaunchDaemon, i.e. the
-    /// privileged Mach bootstrap, while this process runs in a user session.
+    /// `.privileged`: the service is registered by a LaunchDaemon.
     private func activeConnection() -> NSXPCConnection {
         if let connection { return connection }
 
         let connection = NSXPCConnection(machServiceName: machServiceName, options: .privileged)
         connection.remoteObjectInterface = NSXPCInterface(with: OnboardServiceProtocol.self)
 
-        // Mirror of the daemon's check: only talk to a peer signed by our own
-        // Team ID. Unsigned dev builds have no Team ID and skip it, loudly.
+        // Require the daemon's signature, as the daemon requires ours.
         if let team = CodeSigning.currentTeamIdentifier() {
             connection.setCodeSigningRequirement(CodeSigning.peerRequirement(teamIdentifier: team))
         } else {
@@ -120,8 +116,8 @@ public actor OnboardServiceClient: ProgressProviding {
         connection = nil
     }
 
-    /// Runs one reply-style XPC call, resuming exactly once whether the reply
-    /// block or the error handler fires.
+    /// Performs one XPC call and resumes once, whether the reply or the
+    /// error handler fires.
     private func withProxy<Value: Sendable>(
         _ call: (OnboardServiceProtocol, @escaping @Sendable (Value?) -> Void) -> Void
     ) async -> Value? {
@@ -140,9 +136,8 @@ public actor OnboardServiceClient: ProgressProviding {
     }
 }
 
-/// A continuation that tolerates being resumed more than once. XPC gives no
-/// guarantee that the reply block and the error handler are mutually
-/// exclusive when a connection drops mid-call, and a double resume traps.
+/// A continuation that ignores repeated resumes. XPC can call both the reply
+/// and the error handler when a connection drops.
 private final class OneShot<Value: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Value?, Never>?

@@ -2,8 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardCore
 
-/// Scripted process runner: exit codes per executable basename, invocations
-/// recorded for assertion.
+/// A process runner with exit codes per executable, recording invocations.
 private final class ScriptedRunner: ProcessRunning, @unchecked Sendable {
     private let lock = NSLock()
     private var exitCodes: [String: Int32] = [:]
@@ -78,11 +77,7 @@ private struct FakeRoot: OnboardingRootServicing {
         #expect(runner.calls.filter { $0.tool == "killall" }.count == 1, "one Dock restart, after all edits")
     }
 
-    /// An app the user already has is the end state the step is asking for.
-    /// dockutil exits non-zero rather than duplicate a tile, and treating
-    /// that as a failure marked the whole step failed on hardware for a Dock
-    /// that was exactly as configured — listing a stock app like Apps.app
-    /// was enough to trigger it.
+    /// An app already in the Dock is not added again and does not fail the step.
     @Test func dockCountsAnAlreadyPresentAppAsAddedWithoutCallingDockutil() async {
         let context = makeContext(
             existing: ["/System/Applications/Apps.app", "/Applications/Edge.app"],
@@ -101,8 +96,7 @@ private struct FakeRoot: OnboardingRootServicing {
         #expect(added.first?.arguments.contains("/Applications/Edge.app") == true)
     }
 
-    /// A refusal that isn't a duplicate is still a failure, and the message
-    /// says which app rather than repeating the counts.
+    /// Other dockutil failures fail the step, naming the app.
     @Test func dockNamesTheAppItCouldNotAdd() async {
         runner.stub("dockutil", exitCode: 1)
         let context = makeContext(existing: ["/Applications/Edge.app"])
@@ -144,10 +138,7 @@ private struct FakeRoot: OnboardingRootServicing {
         #expect(record.status == .downloadFailed)
     }
 
-    /// The exact utiluti invocations, pinned against the vendored binary's
-    /// help (`url set <scheme> <id>`, `type set <uti> <id>`). The first
-    /// hardware run failed with EX_USAGE because a guessed `scheme set`
-    /// spelling shipped untested.
+    /// The utiluti arguments: `url set <scheme> <id>` and `type set <uti> <id>`.
     @Test func defaultAppsUsesUtilutisRealSubcommands() async {
         let item = OnboardingItem(id: "d", kind: .defaultApps(.init(
             browsers: ["com.microsoft.edgemac"],
@@ -168,9 +159,7 @@ private struct FakeRoot: OnboardingRootServicing {
         #expect(calls.count == 3)
     }
 
-    /// The auto-skip: a configured app that isn't on this Mac cannot be
-    /// picked and must not leave the step stuck — the same skip-missing
-    /// philosophy as the dock items.
+    /// Targets with no installed candidates are skipped.
     @Test func defaultAppsSkipsWhenNoCandidateIsInstalled() async {
         let item = OnboardingItem(id: "d", kind: .defaultApps(.init(
             browsers: ["com.microsoft.edgemac"],
@@ -182,8 +171,7 @@ private struct FakeRoot: OnboardingRootServicing {
         #expect(runner.calls.isEmpty, "utiluti must not run for absent apps")
     }
 
-    /// Mixed availability: the installed target is set, the absent one is
-    /// silently skipped rather than failing "no choice made".
+    /// Installed targets are set; missing ones are skipped.
     @Test func defaultAppsActsOnInstalledTargetsAndSkipsAbsentOnes() async {
         let item = OnboardingItem(id: "d", kind: .defaultApps(.init(
             browsers: ["com.microsoft.edgemac"],
@@ -224,8 +212,7 @@ private struct FakeRoot: OnboardingRootServicing {
     private let current = ["/Apps/Safari.app", "/Apps/Mail.app"]
     private let recommended = ["/Apps/Edge.app", "/Apps/Mail.app", "/Apps/Teams.app"]
 
-    /// add = current Dock + recommended appended, minus what is already there
-    /// (dockutil refuses duplicates, so the preview must too).
+    /// `add` appends configured items not already in the Dock.
     @Test func addAppendsWithoutDuplicating() {
         #expect(DockPreview.items(current: current, recommended: recommended, action: .add)
             == ["/Apps/Safari.app", "/Apps/Mail.app", "/Apps/Edge.app", "/Apps/Teams.app"])
@@ -252,8 +239,7 @@ private struct FakeRoot: OnboardingRootServicing {
         )
     }
 
-    /// The exclude list is enforced daemon-side from the daemon's own config —
-    /// the caller cannot bypass it.
+    /// The exclusion list is enforced by the daemon.
     @Test func excludedConsoleUserIsNeverDemoted() async {
         let ops = operations(items: [OnboardingItem(id: "demote", kind: .demoteUser(exclude: ["jordy"]))])
         let reply = await ops.demoteConsoleUser(itemID: "demote")
@@ -262,8 +248,7 @@ private struct FakeRoot: OnboardingRootServicing {
         #expect(runner.calls.isEmpty, "dseditgroup must not even be consulted")
     }
 
-    /// "no reyes is NOT a member of admin" contains "yes" — membership is
-    /// judged by the answer's prefix, not by substring.
+    /// Membership uses a prefix match: "no reyes is NOT a member" contains "yes".
     @Test func usernameContainingYesIsNotMistakenForMembership() async {
         runner.stub("dseditgroup", output: "no reyes is NOT a member of admin")
         let ops = operations(items: [OnboardingItem(id: "demote", kind: .demoteUser(exclude: []))], user: "reyes")

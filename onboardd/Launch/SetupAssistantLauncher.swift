@@ -2,8 +2,7 @@ import Foundation
 import OnboardCore
 import os
 
-/// Launches the app inside the Setup Assistant user's session via
-/// `launchctl asuser <uid> /usr/bin/open -a <app> --args …`.
+/// Launches the app into a session with `launchctl asuser <uid> open -a …`.
 @MainActor
 struct SetupAssistantLauncher: AppLaunching {
     @discardableResult
@@ -30,10 +29,8 @@ struct SetupAssistantLauncher: AppLaunching {
         }
     }
 
-    /// The daemon lives at Contents/MacOS/onboardd inside the app bundle, so
-    /// the bundle is three levels up from the executable. Falls back to the
-    /// installed path when the layout is unexpected (e.g. running from
-    /// DerivedData during development).
+    /// The bundle containing this executable (`Contents/MacOS/onboardd`), or
+    /// the installed path when run from elsewhere.
     nonisolated static func appBundleURL() -> URL {
         let executable = URL(filePath: CommandLine.arguments[0]).resolvingSymlinksInPath()
         let candidate = executable
@@ -46,9 +43,7 @@ struct SetupAssistantLauncher: AppLaunching {
         return URL(filePath: ServiceIdentity.installedAppPath)
     }
 
-    /// The app's own executable, read from the bundle rather than assumed, so
-    /// `AppPresence` matches the right process and not the daemon sitting in
-    /// the same Contents/MacOS directory.
+    /// The app's executable, read from its Info.plist.
     nonisolated static func appExecutableURL() -> URL {
         let bundle = appBundleURL()
         let name = Bundle(url: bundle)?.infoDictionary?["CFBundleExecutable"] as? String

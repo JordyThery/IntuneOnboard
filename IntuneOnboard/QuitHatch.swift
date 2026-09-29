@@ -2,26 +2,17 @@ import AppKit
 import OnboardCore
 import os
 
-/// The keyboard affordances the kiosk hides: **⌃⌥⌘Q** to get out and **⌘L**
-/// to see the logs.
+/// Keyboard shortcuts for administrators: ⌃⌥⌘Q quits, ⌘L toggles the log
+/// panel, and Space (provisioning only) toggles the serial barcode.
 ///
-/// The kiosk modes refuse ordinary termination on purpose — ⌘Q dismissing the
-/// window over Setup Assistant was a finding from the first hardware run. But
-/// a Mac whose provisioning can't progress (no configuration profile, say)
-/// must not be a Mac nobody can finish setting up, and during Setup Assistant
-/// there is no Terminal, no Dock and no Force Quit to fall back on. The log
-/// window exists for the same reason: no Console either.
-///
-/// Both are deliberately undocumented in the UI: a technician can find
-/// them, someone unboxing a Mac won't.
+/// During Setup Assistant there is no Dock, Force Quit or Terminal, so these
+/// are the only way to leave the window or view logs.
 @MainActor
 enum QuitHatch {
     private static var monitor: Any?
 
-    /// `quit` runs before termination — it is where the daemon is told to
-    /// stop relaunching the window. `barcodeOnSpace` arms the Space toggle —
-    /// kiosk modes and the provisioning demo only, because in the user-space
-    /// onboarding space belongs to the focused control.
+    /// `quit` runs before termination. `barcodeOnSpace` enables Space, which
+    /// is left to focused controls during onboarding.
     static func install(quit: @escaping @Sendable () async -> Void, barcodeOnSpace: Bool = false) {
         guard monitor == nil else { return }
 
@@ -32,7 +23,7 @@ enum QuitHatch {
                     await quit()
                     AppTermination.requestExit(reason: "administrator escape hatch (⌃⌥⌘Q)")
                 }
-                return nil // swallow it
+                return nil
             }
 
             if barcodeOnSpace, matchesBarcode(event) {
@@ -43,7 +34,6 @@ enum QuitHatch {
 
             if matchesShowLog(event) {
                 OnboardLog.app.notice("⌘L pressed — toggling the log window")
-                // Positioned against the card and one level above it.
                 LogWindow.shared.toggle(over: WindowPresenter.cardWindow)
                 return nil
             }
@@ -52,7 +42,6 @@ enum QuitHatch {
         }
     }
 
-    /// Thin mapping onto `EscapeHatch`, where the predicate is tested.
     private static func matchesEscapeHatch(_ event: NSEvent) -> Bool {
         EscapeHatch.matches(
             modifiers: modifiers(of: event),
@@ -60,8 +49,7 @@ enum QuitHatch {
         )
     }
 
-    /// ⌘L exactly: no Control, no Option, so it can't be confused with the
-    /// escape hatch.
+    /// ⌘L with no Control or Option.
     private static func matchesShowLog(_ event: NSEvent) -> Bool {
         let flags = modifiers(of: event)
         guard flags.contains(.command),
@@ -71,7 +59,7 @@ enum QuitHatch {
         return event.charactersIgnoringModifiers?.lowercased() == "l"
     }
 
-    /// Space with no modifiers at all.
+    /// Space with no modifiers.
     private static func matchesBarcode(_ event: NSEvent) -> Bool {
         modifiers(of: event).isEmpty && event.charactersIgnoringModifiers == " "
     }

@@ -3,9 +3,8 @@ import Foundation
 import Testing
 @testable import OnboardCore
 
-/// Mirrors Scripts/verify-installomator.sh so plain `swift test` catches
-/// vendored-payload drift: the pinned SHA-256 must match the file, and the
-/// behaviors our runtime depends on must still be present.
+/// Mirrors Scripts/verify-installomator.sh: the pinned SHA-256 matches and
+/// the behaviour the runtime depends on is present.
 @Suite struct VendorIntegrityTests {
     private var vendorDirectory: URL {
         URL(filePath: #filePath)

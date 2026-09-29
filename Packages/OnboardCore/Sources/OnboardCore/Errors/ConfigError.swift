@@ -1,7 +1,6 @@
 import Foundation
 
-/// A typed configuration problem, always carrying the key path it was found
-/// at so `validate-config` output is actionable.
+/// A configuration error, with the key path where it was found.
 public struct ConfigError: Error, Equatable, Sendable, CustomStringConvertible {
     public enum OptionViolation: Equatable, Sendable {
         case debugForbidden
@@ -80,7 +79,7 @@ public struct ConfigError: Error, Equatable, Sendable, CustomStringConvertible {
     }
 }
 
-/// Thrown by ConfigLoader when the config cannot be used at all.
+/// A configuration that cannot be used.
 public enum ConfigLoadError: Error, Sendable, CustomStringConvertible {
     case fileNotFound(String)
     case unreadable(String, underlying: String)

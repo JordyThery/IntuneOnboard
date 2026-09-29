@@ -1,6 +1,6 @@
 import Foundation
 
-/// Result of a completed (or timed-out) subprocess.
+/// The result of a finished or timed-out process.
 public struct ProcessResult: Sendable {
     public let exitCode: Int32
     public let standardOutput: String
@@ -15,12 +15,11 @@ public struct ProcessResult: Sendable {
     }
 }
 
-/// Abstraction over Process so actions are unit-testable with fakes.
-/// Always argument arrays — never shell strings (spec §0).
+/// Runs processes from argument arrays, never shell strings. Replaceable in
+/// tests.
 public protocol ProcessRunning: Sendable {
-    /// `lineHandler` receives each stdout line as it arrives (used for
-    /// `status:` updates). On timeout the process is terminated and the
-    /// result carries `timedOut = true`.
+    /// `lineHandler` receives stdout line by line. On timeout the process is
+    /// terminated and `timedOut` is true.
     func run(
         executable: String,
         arguments: [String],
@@ -55,14 +54,8 @@ public struct LiveProcessRunner: ProcessRunning {
 
         let collector = LineCollector(handler: lineHandler)
 
-        // BOTH pipes are read as data arrives. stderr used to be read once,
-        // after exit — which meant a child writing more than the pipe's
-        // ~64 KB buffer to stderr blocked on write, could never exit, and was
-        // reported as a timeout with its evidence truncated (`set -x` alone
-        // can do it). Draining through the handler also closes the older
-        // loss: the final bytes are consumed *before* EOF resolves the drain,
-        // so the snapshot can never race a callback that has already read
-        // them.
+        // Read both pipes as data arrives. A child writing more than the pipe
+        // buffer (about 64 KB) would otherwise block and never exit.
         let stdoutDrained = attach(stdoutPipe, as: .stdout, to: collector)
         let stderrDrained = attach(stderrPipe, as: .stderr, to: collector)
 
@@ -86,18 +79,12 @@ public struct LiveProcessRunner: ProcessRunning {
                 return false
             }
 
-            // Timeout won. Collect the process *tree* before signalling
-            // anything: killing only the interpreter left its children —
-            // a hung curl, an installer — running as root after the item
-            // was already recorded failed, and a later automatic attempt
-            // then ran alongside the orphan. Collected first because the
-            // moment the parent dies, orphans re-parent to launchd and
-            // `pgrep -P` can no longer find them.
+            // Timed out. Find descendants before signalling: once the parent
+            // exits they are re-parented to launchd and no longer found.
             let pid = process.processIdentifier
             let descendants = Self.descendantPIDs(of: pid)
 
-            // Terminate, escalate to SIGKILL if ignored, then wait for the
-            // real exit so the status code is meaningful.
+            // SIGTERM, then SIGKILL after five seconds, then wait for exit.
             process.terminate()
             for child in descendants { kill(child, SIGTERM) }
             group.addTask {
@@ -105,10 +92,7 @@ public struct LiveProcessRunner: ProcessRunning {
                 if process.isRunning {
                     kill(pid, SIGKILL)
                 }
-                // Best effort; ESRCH for anything already gone. A pid could
-                // in principle have been reused within these seconds — the
-                // window is tiny, and the alternative is leaving root work
-                // running unowned.
+                // Best effort; already-exited processes are ignored.
                 for child in descendants { kill(child, SIGKILL) }
                 return .timeoutFired
             }
@@ -117,11 +101,8 @@ public struct LiveProcessRunner: ProcessRunning {
             return true
         }
 
-        // Wait for both pipes to reach EOF so nothing a fast writer said in
-        // its last moments is lost. Bounded: a child that handed its pipe to
-        // a background grandchild (`something &` in a script that then exits)
-        // keeps EOF from ever arriving, and that must stall an item for a
-        // moment, not hang the run.
+        // Wait for EOF on both pipes, but not indefinitely: a background
+        // child can keep a pipe open after the process exits.
         await stdoutDrained.wait(upTo: .seconds(3))
         await stderrDrained.wait(upTo: .seconds(3))
         stdoutPipe.fileHandleForReading.readabilityHandler = nil
@@ -136,8 +117,7 @@ public struct LiveProcessRunner: ProcessRunning {
         )
     }
 
-    /// Streams one pipe into the collector until EOF; the returned drain
-    /// resolves at EOF (`availableData` coming back empty).
+    /// Reads a pipe into the collector until EOF, which completes the drain.
     private func attach(
         _ pipe: Pipe,
         as stream: LineCollector.Stream,
@@ -157,9 +137,7 @@ public struct LiveProcessRunner: ProcessRunning {
         return drain
     }
 
-    /// Direct and transitive children of `pid`, walked breadth-first via
-    /// `pgrep -P` (which takes a comma-separated parent list, so it is one
-    /// subprocess per generation). Only called on the timeout path.
+    /// All descendants of `pid`, found with one `pgrep -P` per generation.
     static func descendantPIDs(of pid: pid_t, generationLimit: Int = 8) -> [pid_t] {
         var collected: [pid_t] = []
         var frontier = [pid]
@@ -186,8 +164,7 @@ public struct LiveProcessRunner: ProcessRunning {
     }
 }
 
-/// EOF signal for one pipe: `markFinished()` on the reader side, a bounded
-/// `wait(upTo:)` on the consumer side. Idempotent, single waiter.
+/// Signals EOF for one pipe, with a bounded wait. Single waiter.
 private final class PipeDrain: @unchecked Sendable {
     private let lock = NSLock()
     private var finished = false
@@ -202,14 +179,13 @@ private final class PipeDrain: @unchecked Sendable {
         pending?.resume()
     }
 
-    /// Returns at EOF or after `grace`, whichever comes first.
+    /// Returns at EOF or after `grace`.
     func wait(upTo grace: Duration) async {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.waitForFinish() }
             group.addTask { try? await Task.sleep(for: grace) }
             await group.next()
-            // The un-won task must be able to end, or the group would wait
-            // for it forever: cancellation resolves the continuation below.
+            // Cancelling the other task ends its wait, so the group can finish.
             group.cancelAll()
         }
     }
@@ -227,14 +203,13 @@ private final class PipeDrain: @unchecked Sendable {
                 lock.unlock()
             }
         } onCancel: {
-            // May run before the continuation is stored; `finished` makes the
-            // store-side resume immediately in that case.
+            // May run before the continuation is stored; `finished` covers that.
             markFinished()
         }
     }
 }
 
-/// Accumulates pipe data and emits complete stdout lines to the handler.
+/// Collects pipe output and passes complete stdout lines to the handler.
 private final class LineCollector: @unchecked Sendable {
     enum Stream { case stdout, stderr }
 
@@ -263,8 +238,7 @@ private final class LineCollector: @unchecked Sendable {
         }
     }
 
-    /// A final line without a trailing newline still reaches the handler —
-    /// called once, at stdout EOF.
+    /// Passes a final line that has no trailing newline. Called at stdout EOF.
     func flushPendingLine() {
         lock.lock()
         defer { lock.unlock() }

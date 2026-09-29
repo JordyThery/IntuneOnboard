@@ -2,30 +2,17 @@ import AppKit
 import OnboardCore
 import os
 
-/// An invisible full-screen window that swallows clicks, so the kiosk's only
-/// real guarantee holds: nothing behind the card can be *reached*, even though
-/// the card itself is only panel-sized.
+/// Invisible windows that intercept clicks around the provisioning window
+/// during Setup Assistant.
 ///
-/// This used to be the card's own window — screen-sized and transparent, with
-/// the card positioned somewhere inside it. That made the card's placement a
-/// SwiftUI coordinate problem, and every attempt at it was a few points out.
-/// Splitting the two jobs means the card's window can simply *be* Setup
-/// Assistant's panel rectangle, and blocking stays a separate, dumb concern.
-///
-/// Borderless on purpose: this window must never take key focus, or it would
-/// steal ⌃⌥⌘Q and ⌘L from the card. A borderless window can't become key,
-/// which is a liability there and exactly the behaviour wanted here.
+/// Borderless, so they cannot become key and take ⌃⌥⌘Q or ⌘L from the
+/// provisioning window.
 @MainActor
 enum KioskBlocker {
     private static var windows: [NSWindow] = []
 
-    /// `level` is the card's level; the blockers go directly beneath it.
-    ///
-    /// One blocker **per screen**: the card and the panel-matching are
-    /// primary-display concerns (Setup Assistant lives there), but a click is
-    /// a click on any display, and covering only the first left everything on
-    /// a second one reachable. Re-invoked on screen-parameter changes, so the
-    /// set follows displays being plugged and unplugged.
+    /// One window per screen, directly below `level`. Call again when screens
+    /// change.
     static func install(below level: NSWindow.Level) {
         let screens = NSScreen.screens
         guard !screens.isEmpty else {
@@ -57,9 +44,7 @@ enum KioskBlocker {
         )
         blocker.identifier = identifier
         blocker.isOpaque = false
-        // Not fully transparent: a window with a clear background still
-        // hit-tests, but this is one pixel of insurance against a compositor
-        // that decides an entirely invisible window needn't be hit-tested.
+        // Near-transparent rather than clear, so the window is always hit-tested.
         blocker.backgroundColor = NSColor.black.withAlphaComponent(0.001)
         blocker.hasShadow = false
         blocker.ignoresMouseEvents = false
@@ -68,11 +53,8 @@ enum KioskBlocker {
         return blocker
     }
 
-    /// Everything below the menu bar. The menu bar strip is deliberately left
-    /// alone: our window has always sat under it (a `.titled` window is kept
-    /// there, and the escape hatch needs `.titled` to receive keys), the first
-    /// hardware run was accepted that way, and during Setup Assistant that
-    /// strip is where the accessibility options live.
+    /// The screen below the menu bar, which stays usable for Setup
+    /// Assistant's accessibility options.
     private static func frame(for screen: NSScreen) -> CGRect {
         let menuBar = screen.frame.maxY - screen.visibleFrame.maxY
         return CGRect(
@@ -83,7 +65,5 @@ enum KioskBlocker {
         )
     }
 
-    /// Tagged like the log panel so `WindowPresenter` can tell the card's
-    /// window from the others it owns.
     static let identifier = NSUserInterfaceItemIdentifier("be.jordythery.intuneonboard.kioskBlocker")
 }

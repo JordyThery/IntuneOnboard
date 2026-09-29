@@ -2,24 +2,18 @@ import Foundation
 import OnboardCore
 import os
 
-/// Watches the console user and reacts to session changes: logs every
-/// transition, launches the UI into the Setup Assistant session, and puts it
-/// back if it disappears while there is still work to show. Polling (2 s) is
-/// good enough; SCDynamicStore notifications can replace it if the hardware
-/// runs show a need.
+/// Polls the console user every two seconds, launches the UI into the Setup
+/// Assistant session, and relaunches it if it exits while provisioning runs.
 @MainActor
 final class SessionMonitor {
     private let launcher: any AppLaunching
     private let appExecutablePath: String
-    /// The daemon stops relaunching the UI once the run is over — otherwise it
-    /// would fight the app's own exit-on-completion.
     private let isRunActive: @Sendable () async -> Bool
 
     private var lastLogged: ConsoleUser?
     private var launchedSetupAssistantUI = false
     private var task: Task<Void, Never>?
-    /// Caps relaunches so the kiosk can never trap the Mac, even when XPC is
-    /// down and the app's polite "stop" can't reach us.
+    /// Caps relaunches, so the window can always be dismissed.
     private var relaunchPolicy = RelaunchPolicy()
 
     init(
@@ -55,13 +49,8 @@ final class SessionMonitor {
 
         guard let user, user.isSetupAssistant else { return }
 
-        // Nothing to show once the run is over. This gate also covers the
-        // *first* launch, because launchd re-spawns us on demand and a fresh
-        // instance has `launchedSetupAssistantUI == false`: on a finished
-        // device it would put the kiosk back up, the app would read
-        // "completed" and exit 5 s later, and its polling would spawn us
-        // again — the window closing, reappearing and closing again that the
-        // first accepted run showed during Setup Assistant.
+        // Also gates the first launch, since each daemon instance starts with
+        // `launchedSetupAssistantUI == false`.
         guard await isRunActive() else { return }
 
         if !launchedSetupAssistantUI {
@@ -69,8 +58,6 @@ final class SessionMonitor {
             return
         }
 
-        // Force-quit and crashes can still take the window away mid-run, so
-        // put it back — but only a few times (⌃⌥⌘Q must always win).
         guard relaunchPolicy.canRelaunch else { return }
         guard !AppPresence.isAppRunning(uid: user.uid, executablePath: appExecutablePath) else { return }
 

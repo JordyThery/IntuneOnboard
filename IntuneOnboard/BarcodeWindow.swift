@@ -3,17 +3,13 @@ import CoreImage.CIFilterBuiltins
 import OnboardCore
 import SwiftUI
 
-/// Space toggles a window with the serial number as a scannable barcode —
-/// bench-provisioning ergonomics: the technician points the asset scanner at
-/// the screen instead of flipping the Mac over mid-enrollment.
-///
-/// Kiosk-only (plus the provisioning demo, for review): in the user-space
-/// onboarding, space belongs to the focused control.
+/// A window showing the serial number as a barcode, toggled with Space in the
+/// provisioning window, for asset scanners.
 @MainActor
 final class BarcodeWindow {
     static let shared = BarcodeWindow()
 
-    /// Tagged so `WindowPresenter.cardWindow` never mistakes this for the card.
+    /// Distinguishes this window from the main window.
     static let identifier = NSUserInterfaceItemIdentifier("be.jordythery.intuneonboard.barcode")
 
     private var window: NSWindow?
@@ -30,8 +26,7 @@ final class BarcodeWindow {
         let panel = window ?? make()
         window = panel
 
-        // Centred on the card (or the screen), one level above the kiosk —
-        // same placement rules as the log window.
+        // Centred on the host window, one level above it.
         let size = panel.frame.size
         let anchor = host?.frame
             ?? NSScreen.screens.first.map(\.visibleFrame)
@@ -93,8 +88,7 @@ private struct BarcodeView: View {
     }
 }
 
-/// Code 128, the symbology asset scanners expect for serials. Rendered at
-/// integer scale with interpolation off so the bars stay crisp.
+/// Code 128, scaled by whole pixels without interpolation to keep bars sharp.
 private enum Barcode {
     static func image(for text: String, width: CGFloat, height: CGFloat) -> NSImage? {
         guard let data = text.data(using: .ascii) else { return nil }

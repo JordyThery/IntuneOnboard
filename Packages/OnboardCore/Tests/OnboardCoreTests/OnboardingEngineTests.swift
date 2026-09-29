@@ -2,8 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardCore
 
-/// Mutable system stand-in: tests flip these to simulate the user (or an
-/// action) changing the system between derivations.
+/// A mutable stand-in for the system, changed between evaluations.
 private final class FakeSystem: @unchecked Sendable {
     private let lock = NSLock()
     private var _wallpaper: String?
@@ -40,7 +39,7 @@ private final class FakeSystem: @unchecked Sendable {
     }
 }
 
-/// Scripted action results, recording what it was asked to do.
+/// Scripted action results, recording each request.
 private final class FakeActions: OnboardingActing, @unchecked Sendable {
     private let lock = NSLock()
     private var results: [String: ItemRecord] = [:]
@@ -71,16 +70,14 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         )))
         #expect(await OnboardingDerivation.status(of: item, record: nil, probes: system.probes) == .completed)
 
-        // …and un-completes the moment the system stops matching.
+        // …and becomes incomplete when the system changes back.
         system[.browser] = "com.apple.Safari"
         #expect(await OnboardingDerivation.status(of: item, record: nil, probes: system.probes) == .suggested)
     }
 
-    /// utiluti exiting 0 only means the request was made — the user can still
-    /// decline macOS's own prompt (seen on hardware). A success record with an
-    /// unchanged handler must NOT complete the step; "keep current" (skipped)
-    /// is the one recorded outcome that counts, being a decision rather than
-    /// a claim about the system.
+    /// A success record does not complete `defaultApps` while the handler is
+    /// unchanged; the user may have declined the prompt. Keeping the current
+    /// handler (skipped) does.
     @Test func defaultAppsSuccessRecordDoesNotBeatAnUnchangedHandler() async {
         system[.browser] = "com.apple.Safari"
         let item = OnboardingItem(id: "d", kind: .defaultApps(.init(
@@ -94,15 +91,13 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         let keptCurrent = ItemRecord(outcome: .skipped, status: .notNeeded)
         #expect(await OnboardingDerivation.status(of: item, record: keptCurrent, probes: system.probes) == .completed)
 
-        // The moment the system really changes, the same success record reads
-        // as completed — measured, not taken on trust.
+        // Once the handler changes, the step is complete.
         system[.browser] = "com.microsoft.edgemac"
         #expect(await OnboardingDerivation.status(of: item, record: claimedSuccess, probes: system.probes) == .completed)
     }
 
-    /// Candidates that aren't installed neither block nor count: a target
-    /// with none of its apps present is ignored outright, and a step whose
-    /// every target is absent derives completed.
+    /// Targets with no installed candidates are ignored; if all are, the
+    /// step is complete.
     @Test func uninstalledCandidatesNeverHoldTheStepHostage() async {
         system[.browser] = "com.microsoft.edgemac"
         let item = OnboardingItem(id: "d", kind: .defaultApps(.init(
@@ -124,7 +119,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         let item = OnboardingItem(id: "demote", kind: .demoteUser(exclude: ["ladmin"]))
         system.setAdmin("jordy", true)
 
-        // A stale success record does not beat the fact the user is an admin.
+        // Admin membership outweighs a success record.
         let staleSuccess = ItemRecord(outcome: .success, status: .done)
         #expect(await OnboardingDerivation.status(of: item, record: staleSuccess, probes: system.probes) == .suggested)
 
@@ -156,7 +151,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         #expect(await OnboardingDerivation.status(of: item, record: nil, probes: system.probes) == .completed)
     }
 
-    /// Two remote sources with the same basename must not share a local file.
+    /// Remote sources with the same file name get different local paths.
     @Test func remoteDestinationsCannotCollide() {
         let first = WallpaperLocation.destination(for: .remote(URL(string: "https://a.example/w.jpg")!))
         let second = WallpaperLocation.destination(for: .remote(URL(string: "https://b.example/w.jpg")!))
@@ -207,7 +202,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         #expect(states[0].record?.outcome == .skipped)
         #expect(states[0].record?.status == .notNeeded)
 
-        // Everything required is complete, so the marker lands.
+        // All required steps complete: the marker is written.
         let saved = try store.loadUserState()
         #expect(saved?.completedAt != nil)
     }
@@ -223,7 +218,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         )
         #expect(await engine.refresh()[0].status == .suggested)
 
-        // The action's side effect: the user leaves the admin group.
+        // The action removes the user from the admin group.
         actions.stub("demote", ItemRecord(outcome: .success, status: .done))
         system.setAdmin("jordy", false)
         let states = await engine.perform(itemID: "demote")
@@ -244,8 +239,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         #expect(actions.performed.first?.choice == .dock(.replace))
     }
 
-    /// A message step completes by being seen: the auto-perform records it,
-    /// derivation reads the record, Continue lights.
+    /// A message step completes once viewed.
     @Test func messageStepsCompleteOnceViewed() async throws {
         let engine = OnboardingEngine(
             items: [OnboardingItem(id: "welcome", kind: .message, required: false)],
@@ -274,8 +268,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         var states = await engine.markDone(itemID: "portal")
         #expect(states.first { $0.id == "portal" }?.status == .completed)
 
-        // markDone on a measured kind is refused: the user's word does not
-        // demote anybody.
+        // markDone is refused for measured kinds.
         states = await engine.markDone(itemID: "demote")
         #expect(states.first { $0.id == "demote" }?.status == .suggested)
         #expect(try store.loadUserState()?.items["demote"]?.outcome != .success)
@@ -302,24 +295,23 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         let completedAt = try store.loadUserState()?.completedAt
         #expect(completedAt != nil, "the optional step cannot hold the marker hostage")
 
-        // A later refresh must not move the timestamp.
+        // A later refresh keeps the timestamp.
         try await Task.sleep(for: .milliseconds(20))
         _ = await engine.refresh()
         #expect(try store.loadUserState()?.completedAt == completedAt)
     }
 }
 
-/// `windowPosition: focus` must not strand the app it just sent the user to,
-/// and must not excuse anything else.
+/// The `focus` backdrop is lifted only for apps onboarding opened.
 @Suite @MainActor struct FocusExemptionTests {
     @Test func liftsOnlyForAppsTheOnboardingLaunched() {
         FocusExemptions.removeAll()
         FocusExemptions.allow("com.microsoft.CompanyPortalMac")
 
         #expect(FocusExemptions.allowsBackdropLift(for: "com.microsoft.CompanyPortalMac"))
-        // A browser the user started themselves stays covered…
+        // An app the user opened stays covered…
         #expect(!FocusExemptions.allowsBackdropLift(for: "com.apple.Safari"))
-        // …and returning to our own window brings the backdrop back.
+        // …and returning to this app restores the backdrop.
         #expect(!FocusExemptions.allowsBackdropLift(for: "be.jordythery.intuneonboard"))
         #expect(!FocusExemptions.allowsBackdropLift(for: nil))
         FocusExemptions.removeAll()
@@ -333,9 +325,8 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
         #expect(!FocusExemptions.allowsBackdropLift(for: ""))
     }
 
-    /// The rule that replaced the first attempt: an `open` step's record
-    /// reads completed the instant the launch succeeds, so watching for a
-    /// "waiting on the user" step never lifted anything.
+    /// The exemption is by app, not by step status: an `open` step is
+    /// complete as soon as the launch succeeds.
     @Test func anOpenStepCompletesAsSoonAsItLaunches() async {
         let item = OnboardingItem(
             id: "portal",
@@ -357,8 +348,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
     }
 }
 
-/// The profile's DEBUG key, onboarding side: actions land in the overlay,
-/// derivation reads through it, the real system stays exactly as it was.
+/// Dry-run onboarding: changes go to the overlay; the real system is unchanged.
 @Suite struct DryRunOnboardingTests {
     private let system = FakeSystem()
 
@@ -374,12 +364,12 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
 
         let record = await actions.perform(item, choice: nil)
         #expect(record.outcome == .success)
-        #expect(record.message == "DEBUG — simulated")
+        #expect(record.message == "dry run — simulated")
 
-        // Derivation through the overlay sees the change and completes…
+        // Evaluation through the overlay sees the change…
         let status = await OnboardingDerivation.status(of: item, record: record, probes: world.probes)
         #expect(status == .completed)
-        // …while the "real Mac" never changed.
+        // …while the real system is unchanged.
         #expect(system[.browser] == "com.apple.Safari")
     }
 
@@ -405,7 +395,7 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
 
         let record = await actions.perform(item, choice: nil)
         #expect(record.outcome == .success)
-        #expect(record.message == "DEBUG — not opened")
+        #expect(record.message == "dry run — not opened")
         let status = await OnboardingDerivation.status(of: item, record: record, probes: world.probes)
         #expect(status == .completed)
         #expect(!system.fileExists("/var/db/enrolled"))
@@ -414,17 +404,17 @@ private final class FakeActions: OnboardingActing, @unchecked Sendable {
     @Test func keepCurrentAndMissingWallpaperKeepTheRealRulesInDryRun() async {
         let (world, actions) = makeDryRun()
 
-        // keepCurrent stays a decision, not a simulation.
+        // keepCurrent is not simulated.
         let dock = OnboardingItem(id: "dock", kind: .dock(.init(strategies: [.add, .keep], items: [])))
         let kept = await actions.perform(dock, choice: .keepCurrent)
         #expect(kept.outcome == .skipped)
 
-        // A local wallpaper file that isn't there skips, same as for real.
+        // A missing local wallpaper is skipped.
         let wallpaper = OnboardingItem(id: "wp", kind: .wallpaper(.init(sources: [.path("/nonexistent/corp.jpg")])))
         let skipped = await actions.perform(wallpaper, choice: nil)
         #expect(skipped.outcome == .skipped)
 
-        // A remote source presumes its download and completes via the overlay.
+        // Remote sources are assumed downloaded.
         let url = URL(string: "https://example.com/corp.jpg")!
         let remote = OnboardingItem(id: "wp2", kind: .wallpaper(.init(sources: [.remote(url)])))
         let record = await actions.perform(remote, choice: nil)

@@ -39,8 +39,7 @@ import Testing
         #expect(snapshot.completedCount == DemoScenario.steps.count)
     }
 
-    /// A retry rewinds to the failing item, so the user sees it run again
-    /// rather than flip instantly to green.
+    /// Retry rewinds to the failing item.
     @Test func retryRebasesToTheFailingItem() {
         let snapshot = DemoScenario.snapshot(
             atElapsed: DemoScenario.retryRebaseSeconds + 1,
@@ -52,22 +51,21 @@ import Testing
     }
 
     @Test func timelineIsMonotonic() {
-        // Completed count never goes down as the clock advances.
+        // The completed count never decreases.
         var previous = 0
         for tick in stride(from: 0.0, through: DemoScenario.totalSeconds + 2, by: 0.5) {
             let completed = DemoScenario.snapshot(atElapsed: tick).completedCount
             #expect(completed >= previous)
             previous = completed
         }
-        // Everything but the deliberately failing item.
+        // All but the failing item.
         #expect(previous == DemoScenario.steps.count - 1)
 
         let final = DemoScenario.snapshot(atElapsed: DemoScenario.totalSeconds + 2)
         #expect(final.items.allSatisfy { $0.outcome.isTerminal })
     }
 
-    /// The timeline and the demo profile are written by hand in two places;
-    /// this is what catches them drifting apart.
+    /// The timeline and the demo configuration list the same items.
     @Test func timelineAndConfigurationAgreeOnItems() {
         let configured = DemoScenario.configuration().provisioning?.items.map(\.id) ?? []
         #expect(configured == DemoScenario.steps.map(\.id))
@@ -76,7 +74,7 @@ import Testing
     @Test func demoConfigurationPassesTheRealValidator() {
         let errors = ConfigValidator.validate(
             DemoScenario.configuration(),
-            // Inline scripts only, so nothing is stat-ed; fail closed anyway.
+            // Inline scripts only; no files are checked.
             fileChecks: .init(attributesOfItem: { _ in nil })
         )
         #expect(errors.isEmpty, "demo config is invalid: \(errors.map(\.description))")
@@ -88,7 +86,7 @@ import Testing
         #expect(first?.engineState == .preflight)
 
         #expect(await source.requestRetry())
-        // Retry rebases the clock past the completed items.
+        // Retry resumes after the completed items.
         let afterRetry = await source.currentSnapshot()
         #expect(afterRetry?.completedCount ?? 0 >= 3)
         #expect(await source.requestRetry() == false)

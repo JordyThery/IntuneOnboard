@@ -1,38 +1,30 @@
 import Foundation
 
-/// XPC interface the daemon exposes over its Mach service.
-/// Payloads are JSON-encoded ProgressSnapshot — keeps the @objc surface tiny
-/// and the real types Codable/Sendable.
+/// The daemon's XPC interface. Payloads are JSON.
 @objc public protocol OnboardServiceProtocol {
-    /// Current progress; reply data decodes to ProgressSnapshot.
+    /// Current progress, as a JSON `ProgressSnapshot`.
     func fetchProgress(reply: @escaping @Sendable (Data?) -> Void)
 
-    /// Re-run failed required provisioning items ("Retry failed" in the UI).
-    /// Replies true when a retry pass was started.
+    /// Runs failed provisioning items again. Replies true if a run started.
     func retryFailedItems(reply: @escaping @Sendable (Bool) -> Void)
 
-    /// Stop relaunching the UI for the rest of this run: an administrator used
-    /// the escape hatch (⌃⌥⌘Q). The engine keeps going — this hides the
-    /// window, it does not cancel provisioning.
+    /// Stops relaunching the UI for this run (⌃⌥⌘Q). Provisioning continues.
     func suppressUIRelaunch(reply: @escaping @Sendable (Bool) -> Void)
 
-    /// Onboarding root operation: download the wallpaper item's source at
-    /// `sourceIndex` into the shared root-owned location. The daemon resolves
-    /// the URL from its own config — the caller cannot make root fetch
-    /// arbitrary URLs. Reply decodes to `RootOperationReply`.
+    /// Downloads the wallpaper item's source at `sourceIndex` to the shared
+    /// location. The URL comes from the daemon's configuration. Replies with a
+    /// JSON `RootOperationReply`.
     func fetchWallpaper(itemID: String, sourceIndex: Int, reply: @escaping @Sendable (Data?) -> Void)
 
-    /// Onboarding root operation: remove the *console* user from the admin group,
-    /// honouring the item's exclude list from the daemon's own config. The
-    /// caller cannot name a user. Reply decodes to `RootOperationReply`.
+    /// Removes the console user from the admin group, unless excluded by the
+    /// item. Replies with a JSON `RootOperationReply`.
     func demoteConsoleUser(itemID: String, reply: @escaping @Sendable (Data?) -> Void)
 }
 
-/// Result of an onboarding root operation, JSON over the wire like everything
-/// else on this interface.
+/// The result of a root operation.
 public struct RootOperationReply: Codable, Sendable {
     public var ok: Bool
-    /// fetchWallpaper: the local path. demoteConsoleUser: "demoted"/"notNeeded".
+    /// fetchWallpaper: the local path. demoteConsoleUser: "demoted" or "notNeeded".
     public var value: String?
     public var message: String?
 

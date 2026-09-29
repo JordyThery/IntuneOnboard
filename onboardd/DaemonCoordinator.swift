@@ -2,8 +2,8 @@ import Foundation
 import OnboardCore
 import os
 
-/// Owns the daemon's run: wait for config → preflight → engine → marker.
-/// Serves snapshots to the XPC layer and accepts retry requests.
+/// Runs provisioning: wait for configuration, preflight, engine, marker.
+/// Serves progress to the XPC service and accepts retry requests.
 actor DaemonCoordinator {
     enum Phase {
         case idle
@@ -20,16 +20,8 @@ actor DaemonCoordinator {
     private var uiSuppressed = false
     private let store = StateStore()
 
-    /// The sinks are built from the profile's `logging` dictionary, not from
-    /// `RotatingFileSink`'s defaults.
-    ///
-    /// They used to be built with the defaults and the configured values were
-    /// simply dropped, so `maxFileSizeMB` and `keepArchives` did nothing at
-    /// all — a profile asking for 1 MB let the log reach 3.4 MB unrotated on
-    /// hardware. Built here so they exist before anything logs, and rebuilt
-    /// by `rebuildSinks` when the profile lands mid-wait: on a Mac's very
-    /// first run the profile arrives *after* this init, and that run — the
-    /// one doing all the work — was the one running on defaults.
+    /// Built at init so logging works immediately, and rebuilt once the
+    /// profile arrives if its `logging` settings differ.
     private var fileLog: RotatingFileSink
     private var installomatorLog: RotatingFileSink
     private var sinkSettings: (maxFileSizeMB: Int, keepArchives: Int)
@@ -49,8 +41,6 @@ actor DaemonCoordinator {
         )
     }
 
-    /// Replaces the sinks when the profile's logging settings differ from the
-    /// ones the sinks were built with. Cheap: a sink opens its file lazily.
     private func rebuildSinks(logging: Configuration.Logging) {
         guard (logging.maxFileSizeMB, logging.keepArchives) != sinkSettings else { return }
         sinkSettings = (logging.maxFileSizeMB, logging.keepArchives)
@@ -68,24 +58,17 @@ actor DaemonCoordinator {
 
     // MARK: - Main run
 
-    /// Holds the exit while a Try again requested over XPC is still running
-    /// the engine. main.swift used to sleep five seconds after `run()` and
-    /// exit — but a retry lands *after* `run()` has returned (its guard needs
-    /// `phase == .finished`), so on a settled Mac every accepted retry started
-    /// inside that window and the `exit()` killed its engine pass mid-item:
-    /// root work terminated abruptly, invisibly, and the next spawn quietly
-    /// re-ran it. The race lives in `ExitGate` (OnboardCore) so it is unit
-    /// tested; this file keeps only the glue.
+    /// Keeps the process alive while a retry started over XPC is running.
     private let exitGate = ExitGate(initialExitCode: ExitCode.success.rawValue)
 
-    /// The full daemon run; returns the process exit code.
+    /// Runs provisioning; returns the exit code.
     func run() async -> Int32 {
         let exitCode = await performRun()
         await exitGate.record(exitCode: exitCode)
         return exitCode
     }
 
-    /// What the process should exit with, once nothing is in flight.
+    /// The exit code, once no retry is in progress.
     func settledExitCode() async -> Int32 {
         await exitGate.settledExitCode()
     }
@@ -93,19 +76,11 @@ actor DaemonCoordinator {
     private func performRun() async -> Int32 {
         log("onboardd run starting")
 
-        // A finished device short-circuits before anything else — in
-        // particular before publishing "waiting for the configuration
-        // profile", which would otherwise make a provisioned Mac claim it was
-        // waiting again every time launchd re-spawned us on demand.
+        // A completed Mac stops here, before publishing "waiting", because
+        // launchd starts the daemon again on every XPC connection.
         if isDeviceComplete() {
-            // Load the config so the snapshot can name the items. Without one
-            // we leave progress.json alone rather than replacing it with
-            // something emptier than what is already there.
             configuration = try? ConfigLoader.load()
-            // DEBUG overrides the short-circuit: a dry run on an
-            // already-provisioned bench Mac is exactly what the key is for.
-            // The engine starts from a blank in-memory slate and persists
-            // nothing, so the real marker survives untouched.
+            // A dry run still runs on a completed Mac; it persists nothing.
             if configuration?.dryRun != true {
                 log("device marker present — nothing to do")
                 if configuration != nil {
@@ -113,19 +88,11 @@ actor DaemonCoordinator {
                 }
                 return ExitCode.success.rawValue
             }
-            log("device marker present but DEBUG is set — dry-running anyway")
+            log("device marker present but dryRun is set — dry-running anyway")
         }
 
-        // Settled: every item is terminal and the failed ones are out of
-        // automatic attempts, so this spawn could not change anything. Stop
-        // here rather than republishing "waiting" and "checking this Mac…"
-        // — launchd re-spawns us every ten seconds while a card is polling,
-        // and on hardware that reset the card (and wiped its buttons) on
-        // every cycle, as well as renaming the Mac over and over.
-        //
-        // Before the wait and the publishes above, deliberately: the resets
-        // are the damage. A verdict still reaches the UI, and `phase` is set
-        // so an explicit Try again is accepted.
+        // Nothing left to retry automatically: report the last result without
+        // re-running preflight or device naming.
         if configuration == nil { configuration = try? ConfigLoader.load() }
         if let configuration, configuration.dryRun != true {
             if let settled = settledResult(configuration) {
@@ -134,16 +101,10 @@ actor DaemonCoordinator {
                 publish(state: .completedWithErrors)
                 return settled.exitCode.rawValue
             }
-            // The same cap for preflight. It has no item records to judge —
-            // nothing ran — so it counts its own failures, and without this
-            // an unreachable required endpoint re-ran the network checks
-            // roughly six times a minute for as long as a card was up.
             let failures = (try? store.loadDeviceState())?.preflightFailures ?? 0
             if failures >= ProvisioningEngine.maxAutomaticAttempts {
                 log("preflight has failed \(failures) times; not retrying automatically — Try again to start over")
                 phase = .finished(ProvisioningEngine.Result(markerWritten: false, failedRequiredIDs: []))
-                // Re-check rather than remember: the answer is cheap, and an
-                // ineligible Mac must keep saying so on every spawn.
                 let ineligible = configuration.requireADE
                     ? !(await Preflight().isADEEnrolled())
                     : false
@@ -152,26 +113,17 @@ actor DaemonCoordinator {
             }
         }
 
-        // 1. Config. The ten minutes are fixed and cannot be configured:
-        // this is the wait *for* the configuration, so any key naming its
-        // own timeout could only be read after the wait it was meant to
-        // govern. Giving up is not final — the daemon declares MachServices,
-        // so the next XPC connection (the login agent, or the card polling)
-        // brings it back for another attempt.
+        // 1. Configuration. The next XPC connection starts another attempt
+        // after a timeout.
         phase = .waitingForConfig
         publish(state: .waitingForConfig)
         guard let configuration = await waitForConfiguration() else {
             log("no configuration after wait timeout; giving up")
-            // Publish a terminal state, or the UI keeps showing "waiting for
-            // the configuration profile" forever — which is what stranded the
-            // first M3 hardware run.
+            // Terminal state, so the UI stops showing "waiting".
             publish(state: .preflightFailed)
             return ExitCode.completedWithErrors.rawValue
         }
         self.configuration = configuration
-        // On a Mac's first run the profile lands mid-wait, after init built
-        // the sinks from defaults — pick its logging settings up now, before
-        // the run that produces almost all of the log.
         rebuildSinks(logging: configuration.logging)
 
         // 2. Preflight.
@@ -183,9 +135,7 @@ actor DaemonCoordinator {
         } catch let error as PreflightError {
             log("preflight failed: \(error.description)")
             recordPreflightOutcome(failed: true)
-            // `notADE` says this Mac may not be configured at all, so the
-            // user session has to know: an unreachable endpoint still leaves
-            // onboarding worth doing, an ineligible Mac does not.
+            // An ineligible Mac must also skip onboarding.
             publish(state: .preflightFailed, ineligible: error == .notADE)
             return error.exitCode.rawValue
         } catch {
@@ -195,19 +145,17 @@ actor DaemonCoordinator {
             return ExitCode.completedWithErrors.rawValue
         }
 
-        // 3. Name the Mac, when configured — before the items, so scripts
-        // that read the name see the new one. Failure is loud but not fatal:
-        // a Mac that provisions under its old name beats one that stops.
+        // 3. Device name, before the items so scripts see it. Not fatal.
         await applyComputerName(configuration: configuration)
 
-        // 4. Engine, kept awake.
+        // 4. Items, with sleep prevented.
         let assertion = PowerAssertion()
         defer { assertion.release() }
         let result = await runEngine(configuration: configuration)
         phase = .finished(result)
 
         if result.dryRun {
-            log("DEBUG dry run finished — nothing executed, device marker NOT written; remove the DEBUG key to provision for real")
+            log("dry run finished — nothing executed, device marker not written; remove dryRun to provision for real")
         } else {
             log(result.markerWritten
                 ? "provisioning complete, device marker written"
@@ -222,7 +170,7 @@ actor DaemonCoordinator {
         case .named(let computerName, let localHostName):
             log("computer named \"\(computerName)\" (LocalHostName \(localHostName)) from template \(template.raw)")
         case .dryRun(let computerName):
-            log("DEBUG — would name this Mac \"\(computerName)\" from template \(template.raw); not applied")
+            log("dry run — would name this Mac \"\(computerName)\" from template \(template.raw); not applied")
         case .valueUnavailable:
             log("deviceNameTemplate \(template.raw): a token has no value on this device — name left unchanged")
         case .failed(let message):
@@ -258,8 +206,7 @@ actor DaemonCoordinator {
         return await engine.run()
     }
 
-    /// How long one attempt waits for the profile. See `run()` for why
-    /// this is a constant rather than a setting.
+    /// Not configurable: it bounds the wait for the configuration itself.
     private static let configWaitSeconds = 600
 
     private func waitForConfiguration() async -> Configuration? {
@@ -270,7 +217,7 @@ actor DaemonCoordinator {
             } catch let error as ConfigLoadError {
                 switch error {
                 case .fileNotFound:
-                    break // keep polling silently
+                    break
                 case .invalid(let errors):
                     log("configuration invalid (\(errors.count) error(s)); still polling for a fixed profile")
                 default:
@@ -290,9 +237,7 @@ actor DaemonCoordinator {
         (try? store.loadDeviceState())?.completedAt != nil
     }
 
-    /// Counts consecutive preflight failures, and clears the count the
-    /// moment preflight passes — a network that came back should leave no
-    /// trace of having been away.
+    /// Counts consecutive preflight failures; a pass resets the count.
     private func recordPreflightOutcome(failed: Bool) {
         var state = (try? store.loadDeviceState()) ?? DeviceState()
         let updated = failed ? state.preflightFailures + 1 : 0
@@ -301,8 +246,7 @@ actor DaemonCoordinator {
         try? store.saveDeviceState(state)
     }
 
-    /// The verdict a previous run already reached, when no further automatic
-    /// attempt could change it. Nil while there is still work to do.
+    /// The previous result, when no automatic attempt remains; nil otherwise.
     private func settledResult(_ configuration: Configuration) -> ProvisioningEngine.Result? {
         let items = configuration.provisioning?.items ?? []
         guard !items.isEmpty, let records = (try? store.loadDeviceState())?.items else { return nil }
@@ -313,22 +257,16 @@ actor DaemonCoordinator {
         return ProvisioningEngine.Result(markerWritten: false, failedRequiredIDs: failed)
     }
 
-    /// False once the run has reached a verdict, or once an administrator has
-    /// dismissed the UI on purpose. The session monitor uses this to decide
-    /// whether to put the window back.
+    /// Whether the session monitor should keep the window up.
     func isRunActive() -> Bool {
         guard !uiSuppressed else { return false }
-        // A marker-present instance returns from run() before `phase` ever
-        // leaves `.idle`, so the phase alone would report this daemon as
-        // active and the session monitor would keep putting the kiosk back on
-        // an already-provisioned Mac.
+        // Checked separately: a completed Mac returns before `phase` changes.
         guard !isDeviceComplete() else { return false }
         if case .finished = phase { return false }
         return true
     }
 
-    /// The ⌃⌥⌘Q escape hatch, arriving over XPC. Provisioning continues; only
-    /// the window stays away.
+    /// ⌃⌥⌘Q: stop relaunching the window. Provisioning continues.
     func suppressUIRelaunch() {
         guard !uiSuppressed else { return }
         uiSuppressed = true
@@ -340,18 +278,12 @@ actor DaemonCoordinator {
         return ProgressSnapshot.read(from: store.progressFileURL)
     }
 
-    /// Re-runs the engine when the last pass left failed required items.
+    /// Runs failed and unfinished items again, resetting both attempt limits.
     func requestRetry() async -> Bool {
         guard case .finished(let result) = phase, !result.markerWritten,
               let configuration else { return false }
         log("retry requested over XPC")
-        // Asked for, so both caps start over: someone who presses Try again
-        // has usually just fixed what was wrong. The preflight count goes
-        // too — the most likely thing they fixed is the network.
         recordPreflightOutcome(failed: false)
-        // Registered with the gate so `settledExitCode` holds the process
-        // open: this pass runs after run() returned, and exiting mid-pass
-        // kills root work.
         await exitGate.beginWork()
         let result2 = await runEngine(configuration: configuration, clearAttemptCounts: true)
         phase = .finished(result2)
@@ -365,14 +297,7 @@ actor DaemonCoordinator {
         snapshot = new
     }
 
-    /// Publishes a phase change, carrying whatever the store already knows
-    /// about each item.
-    ///
-    /// This used to hardcode `.pending`. Because launchd re-spawns the daemon
-    /// on demand (MachServices) whenever the UI polls, a finished device got a
-    /// fresh daemon that saw the marker, published `.completed` — and wiped
-    /// progress.json back to an empty slate. The UI then said "Your Mac is
-    /// ready" above "0 of 4 complete".
+    /// Publishes a state change with the item records already on disk.
     private func publish(state: ProgressSnapshot.EngineState, ineligible: Bool = false) {
         let deviceState = try? store.loadDeviceState()
         let snapshot = ProgressSnapshot.make(

@@ -1,25 +1,21 @@
 import Foundation
 
-/// Applies `provisioning.deviceNameTemplate`: renders the name from the
-/// device and sets ComputerName (verbatim), plus LocalHostName and HostName
-/// (Bonjour-sanitized) via `scutil`. Runs in the daemon — naming needs root —
-/// once per run, before the items, so scripts that read the name see it.
+/// Applies `deviceNameTemplate`: sets ComputerName to the rendered name, and
+/// LocalHostName and HostName to its sanitized form, with `scutil`.
 public struct DeviceNamer: Sendable {
     public enum Outcome: Equatable, Sendable {
-        /// The Mac now carries this name (ComputerName, and the sanitized
-        /// LocalHostName/HostName).
+        /// The names were set.
         case named(computerName: String, localHostName: String)
-        /// DEBUG: rendered but deliberately not applied.
+        /// Dry run: rendered, not applied.
         case dryRun(computerName: String)
-        /// A token had no value on this device (a Mac with no readable
-        /// serial, say). Never applies a partial name.
+        /// A token has no value on this Mac; nothing was changed.
         case valueUnavailable
-        /// scutil failed; the message names the command.
+        /// `scutil` failed.
         case failed(String)
     }
 
     public var runner: any ProcessRunning
-    /// Injectable device answers, keyed by template token.
+    /// Token values; injectable for tests.
     public var value: @Sendable (NameTemplate.Token) -> String?
 
     public init(
@@ -35,8 +31,7 @@ public struct DeviceNamer: Sendable {
             return .valueUnavailable
         }
         guard let localHostName = NameTemplate.localHostName(from: name) else {
-            // A name of nothing but disallowed characters — treat like a
-            // missing value rather than half-applying.
+            // Nothing usable remains after sanitizing.
             return .valueUnavailable
         }
         if dryRun {
@@ -68,9 +63,8 @@ public struct DeviceNamer: Sendable {
 
     // MARK: - Live values
 
-    /// `%model%` is the marketing family — "MacBook Air", not
-    /// "MacBook Air (15-inch, M4, 2025)" and not "Mac15,13". The identifier
-    /// stands in when the device tree carries no product name.
+    /// `%model%`: the model family, e.g. "MacBook Air". Falls back to the
+    /// model identifier when no product name is available.
     @Sendable
     public static func deviceValue(_ token: NameTemplate.Token) -> String? {
         switch token {
@@ -88,7 +82,7 @@ public struct DeviceNamer: Sendable {
     private static func modelName() -> String {
         let info = DeviceInfo.current()
         guard let marketing = info.marketingName else { return info.modelIdentifier }
-        // Strip the parenthetical: "MacBook Air (15-inch, M4, 2025)".
+        // "MacBook Air (15-inch, M4, 2025)" → "MacBook Air".
         return marketing
             .prefix { $0 != "(" }
             .trimmingCharacters(in: .whitespaces)

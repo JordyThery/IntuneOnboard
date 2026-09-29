@@ -1,5 +1,4 @@
-/// Process exit codes. Stable and documented, so a monitoring script can
-/// key off them.
+/// Process exit codes.
 public enum ExitCode: Int32, Sendable {
     case success = 0
     case notRoot = 10

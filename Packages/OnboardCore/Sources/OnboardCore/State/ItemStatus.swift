@@ -1,17 +1,15 @@
 import Foundation
 
-/// A terminal or in-flight outcome for one item. The daemon persists and
-/// serves these; the UI maps `StatusKind` to localized text.
+/// The outcome of one item.
 public enum ItemOutcome: String, Codable, Equatable, Sendable {
     case pending
     case running
-    /// Ran and validated.
+    /// Ran successfully.
     case success
-    /// Deliberately not applicable (disabled, already in desired state,
-    /// optional path missing). Never blocks the completion marker.
+    /// Not applicable: disabled, already in the desired state, or an
+    /// optional file is missing. Never withholds the completion marker.
     case skipped
-    /// Attempted and did not succeed, or validatePath missing afterwards.
-    /// Blocks the marker when the item is required.
+    /// Did not succeed, or `validatePath` was missing afterwards.
     case failed
 
     public var isTerminal: Bool {
@@ -22,8 +20,7 @@ public enum ItemOutcome: String, Codable, Equatable, Sendable {
     }
 }
 
-/// Fine-grained status codes the UI localizes (the script's ~30
-/// DIALOG_STATUS_* variables become this one enum + a String Catalog).
+/// Detailed status, shown as localized text.
 public enum StatusKind: String, Codable, Equatable, Sendable {
     case waiting
     case preparing
@@ -41,17 +38,15 @@ public enum StatusKind: String, Codable, Equatable, Sendable {
     case awaitingUser
 }
 
-/// Persisted record for one item.
+/// The stored record for one item.
 public struct ItemRecord: Codable, Equatable, Sendable {
     public var outcome: ItemOutcome
     public var status: StatusKind
-    /// Optional numeric detail, e.g. dock "X added, Y skipped".
+    /// Counts, e.g. Dock "added" and "skipped".
     public var detail: [String: Int]
     public var message: String?
     public var updatedAt: Date
-    /// How many times this item has actually been executed. The engine stops
-    /// retrying a failed item automatically once this reaches its cap — see
-    /// `ProvisioningEngine.maxAutomaticAttempts`.
+    /// Times the item has run. See `ProvisioningEngine.maxAutomaticAttempts`.
     public var attempts: Int
 
     public init(
@@ -70,10 +65,7 @@ public struct ItemRecord: Codable, Equatable, Sendable {
         self.attempts = attempts
     }
 
-    /// Hand-written so `attempts` can be absent: synthesized `Decodable`
-    /// demands every key, and a device.json from an earlier build has none.
-    /// Failing to decode it would hand the daemon a blank `DeviceState` —
-    /// losing the completion marker and re-provisioning a finished Mac.
+    /// Tolerates a missing `attempts` key.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         outcome = try container.decode(ItemOutcome.self, forKey: .outcome)
@@ -85,9 +77,8 @@ public struct ItemRecord: Codable, Equatable, Sendable {
     }
 }
 
-/// Marker semantics (§5.5 of the spec + approved schema):
-/// the completion marker may be written only when every *required* item is
-/// terminal and none of them failed. Skipped never blocks, even if required.
+/// The completion marker requires every required item to have succeeded or
+/// been skipped.
 public enum MarkerLogic {
     public static func markerEligible(
         requiredIDs: some Sequence<String>,
@@ -105,8 +96,7 @@ public enum MarkerLogic {
         return true
     }
 
-    /// Ids that a next run should retry: only unfinished or failed
-    /// *required* items (successful/skipped work is never redone).
+    /// Required items that are unfinished or failed.
     public static func retryIDs(
         requiredIDs: some Sequence<String>,
         records: [String: ItemRecord]

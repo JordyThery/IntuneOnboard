@@ -1,9 +1,7 @@
 import Foundation
 
-/// Mirrors log lines to a file, rotating at a size limit:
-/// `onboard.log` → `onboard.log.1` → … up to `keepArchives`, oldest dropped.
-/// os.Logger stays the primary sink; this file exists so a support tech can
-/// grab logs from a machine without console access.
+/// Writes log lines to a file and rotates it at a size limit
+/// (`onboard.log` → `onboard.log.1` …, keeping `keepArchives`).
 public final class RotatingFileSink: @unchecked Sendable {
     private let fileURL: URL
     private let maxBytes: Int
@@ -11,8 +9,7 @@ public final class RotatingFileSink: @unchecked Sendable {
     private let lock = NSLock()
     private var handle: FileHandle?
 
-    // Instance property (not static): ISO8601DateFormatter isn't Sendable;
-    // all access happens under `lock`.
+    // Not static: ISO8601DateFormatter is not Sendable. Used under `lock`.
     private let timestampFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -29,8 +26,7 @@ public final class RotatingFileSink: @unchecked Sendable {
         try? handle?.close()
     }
 
-    /// Appends one line, prefixed with a timestamp. Failures are swallowed —
-    /// file logging must never take the daemon down.
+    /// Appends a timestamped line. Errors are ignored.
     public func write(_ line: String) {
         lock.lock()
         defer { lock.unlock() }
@@ -43,7 +39,6 @@ public final class RotatingFileSink: @unchecked Sendable {
                 try rotate()
             }
         } catch {
-            // Intentionally ignored; os.Logger remains the primary sink.
         }
     }
 
@@ -52,10 +47,7 @@ public final class RotatingFileSink: @unchecked Sendable {
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         if !FileManager.default.fileExists(atPath: fileURL.path) {
-            // World-readable on purpose: the daemon writes these as root, and
-            // the log viewer (⌘L) reads them from a user session — during
-            // Setup Assistant that means _mbsetupuser. Relying on root's
-            // umask for that would be an accident waiting to happen.
+            // World-readable, for the log panel in the user session.
             FileManager.default.createFile(
                 atPath: fileURL.path,
                 contents: nil,
@@ -73,7 +65,7 @@ public final class RotatingFileSink: @unchecked Sendable {
         handle = nil
 
         let manager = FileManager.default
-        // Drop the oldest, shift the rest up, move the live file to .1.
+        // Drop the oldest, shift the rest, move the current file to .1.
         let oldest = archiveURL(index: keepArchives)
         if manager.fileExists(atPath: oldest.path) {
             try manager.removeItem(at: oldest)

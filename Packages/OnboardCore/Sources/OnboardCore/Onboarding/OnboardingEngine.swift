@@ -1,7 +1,6 @@
 import Foundation
 
-/// One step as the UI consumes it: the configured item, its derived standing,
-/// and whatever record the last attempt left.
+/// A step with its status and last record, as shown in the UI.
 public struct StepState: Equatable, Sendable, Identifiable {
     public let item: OnboardingItem
     public let status: StepStatus
@@ -16,20 +15,14 @@ public struct StepState: Equatable, Sendable, Identifiable {
     }
 }
 
-/// Executes one step. The concrete router over the five kinds lives with the
-/// actions; the engine only needs the shape, which is also what makes the
-/// engine testable without touching the Dock or the admin group.
+/// Performs one step. Abstracted so the engine is testable.
 public protocol OnboardingActing: Sendable {
     func perform(_ item: OnboardingItem, choice: StepChoice?) async -> ItemRecord
 }
 
-/// Runs onboarding for the signed-in user: derives every step's standing from
-/// the system rather than trusting stored state, executes steps on request, persists
-/// per-user records, and writes the user's completion marker.
-///
-/// Unlike provisioning this runs *in the app*, as the user — there is no XPC
-/// between the UI and this engine. Only the two root operations (wallpaper
-/// download, demotion) leave the process, inside their actions.
+/// Runs onboarding for the signed-in user, in the app process: evaluates each
+/// step, performs steps on request, saves records and writes the completion
+/// marker.
 public actor OnboardingEngine {
     private let items: [OnboardingItem]
     private let store: StateStore
@@ -51,9 +44,7 @@ public actor OnboardingEngine {
         self.state = (try? store.loadUserState() ?? nil) ?? UserState()
     }
 
-    /// Re-derives every step from the system. Called on launch and after
-    /// every step, so a setting the user changed behind our back is reflected
-    /// the next time the list is looked at.
+    /// Re-evaluates every step. Called at launch and after each step.
     public func refresh() async -> [StepState] {
         var states: [StepState] = []
         for item in items {
@@ -64,10 +55,8 @@ public actor OnboardingEngine {
                 probes: probes
             )
 
-            // A step that is complete without ever having run — the browser
-            // was already Edge, the user was never an admin — gets a record
-            // saying so, because the completion marker is judged on records
-            // and "already in the desired state" is the definition of skipped.
+            // A step already in its desired state is recorded as skipped,
+            // since the marker is based on records.
             if status == .completed, record?.outcome.isTerminal != true {
                 record = ItemRecord(outcome: .skipped, status: .notNeeded)
                 state.items[item.id] = record
@@ -80,8 +69,7 @@ public actor OnboardingEngine {
         return states
     }
 
-    /// Executes one step (the automatic kinds on selection, the interactive
-    /// ones from their button) and returns the whole list re-derived.
+    /// Performs one step and returns all steps re-evaluated.
     public func perform(itemID: String, choice: StepChoice? = nil) async -> [StepState] {
         guard let item = items.first(where: { $0.id == itemID }), item.enabled else {
             return await refresh()
@@ -102,13 +90,12 @@ public actor OnboardingEngine {
         return await refresh()
     }
 
-    /// The user's current Dock, for the dock step's live preview.
+    /// The current Dock, for the preview.
     public func currentDockItems() async -> [String] {
         await probes.currentDockItems()
     }
 
-    /// Manual completion for `open` steps — the user saying "done". Only that
-    /// kind takes their word for it; everything else is derived or measured.
+    /// Marks a `manual` `open` step as done.
     public func markDone(itemID: String) async -> [StepState] {
         guard let item = items.first(where: { $0.id == itemID }),
               case .open(_, .manual) = item.kind
@@ -122,10 +109,7 @@ public actor OnboardingEngine {
 
     // MARK: - Marker
 
-    /// The user's completion marker: written once, when every required step's
-    /// record is success/skipped. Because `refresh()` records derived
-    /// completion and derivation re-checks outcomes (demotion = actually out
-    /// of the admin group), marker eligibility *is* outcome validation.
+    /// Written once every required step has succeeded or been skipped.
     private func writeMarkerIfEarned(_ states: [StepState]) {
         guard state.completedAt == nil else { return }
         let requiredIDs = items.filter(\.required).map(\.id)
@@ -145,15 +129,8 @@ public actor OnboardingEngine {
         }
     }
 
-    /// Read-modify-write, not a blind overwrite.
-    ///
-    /// This engine loads the user's state once and holds it for the whole
-    /// session, so writing the struct back wholesale discards anything
-    /// another part of the app recorded meanwhile. That is exactly how the
-    /// provisioning dismissal vanished on hardware: the app wrote it when
-    /// the user pressed Continue anyway, and the first completed onboarding
-    /// step wrote the pre-dismissal copy straight back over it. Only the
-    /// fields this engine owns are carried across.
+    /// Updates only the fields this engine owns, preserving other changes
+    /// made to the file during the session (such as a provisioning dismissal).
     private func persist() {
         do {
             var onDisk = (try? store.loadUserState() ?? nil) ?? UserState()

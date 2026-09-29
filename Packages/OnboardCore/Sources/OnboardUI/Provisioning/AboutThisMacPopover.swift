@@ -1,16 +1,12 @@
 import OnboardCore
 import SwiftUI
 
-/// The detail the main card deliberately doesn't show. Keeping the card calm
-/// was a deliberate choice, but a technician standing in front of a Setup
-/// Assistant screen still needs the serial number, the OS build and some sign
-/// that the Mac is on the network — and "is it stuck?" needs an answer. All of
-/// it lives here, one click away, off the card itself.
+/// Device details: serial number, OS build, network state and elapsed time.
 struct AboutThisMacPopover: View {
     let device: DeviceInfo?
     let startedAt: Date?
 
-    /// Ticks the elapsed time while the popover is open.
+    /// Updates the elapsed time while open.
     @State private var now = Date.now
 
     var body: some View {
@@ -58,7 +54,7 @@ struct AboutThisMacPopover: View {
                     if let serial = device.serialNumber {
                         row(ProvisioningStrings.serialNumber, serial)
                     }
-                    // Apple's product name: shown as it is in every language.
+                    // A product name; not translated.
                     row(verbatim: "macOS", device.osVersion)
                     if let online = device.isOnline {
                         networkRow(online)
@@ -78,7 +74,6 @@ struct AboutThisMacPopover: View {
         }
         .frame(width: 300)
         .task {
-            // Cheap: one tick a second, only while this popover is on screen.
             while !Task.isCancelled {
                 now = .now
                 try? await Task.sleep(for: .seconds(1))
@@ -90,8 +85,7 @@ struct AboutThisMacPopover: View {
         row(label: Text(label), value: value)
     }
 
-    /// For a label that is a name rather than a word — `macOS` reads the same
-    /// in every language, and offering it for translation only invites one.
+    /// For names such as `macOS`, which are not translated.
     private func row(verbatim label: String, _ value: String) -> some View {
         row(label: Text(verbatim: label), value: value)
     }
@@ -126,9 +120,7 @@ struct AboutThisMacPopover: View {
         }
     }
 
-    /// Formatted by the system rather than assembled here: "min" and "sec"
-    /// are English abbreviations, and a duration's units and their order are
-    /// the locale's business.
+    /// Formatted by the system, so units follow the locale.
     private var elapsed: String? {
         guard let startedAt else { return nil }
         let seconds = max(0, Int(now.timeIntervalSince(startedAt)))

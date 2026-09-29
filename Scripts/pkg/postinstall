@@ -1,6 +1,5 @@
 #!/bin/zsh
-# postinstall — bootstrap the daemon, and the agent for a logged-in GUI user.
-# Idempotent for reinstalls and upgrades (preinstall already booted out).
+# postinstall — start the daemon, and the agent for the console user.
 set -u
 
 DAEMON_LABEL="be.jordythery.intuneonboard.daemon"

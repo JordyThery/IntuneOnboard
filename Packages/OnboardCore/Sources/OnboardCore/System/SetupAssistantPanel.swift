@@ -1,51 +1,30 @@
 import CoreGraphics
 import Foundation
 
-/// Where to put the provisioning card so it reads as part of the setup flow:
-/// a card-sized window centred on Setup Assistant's backdrop, matching the
-/// panel the system itself draws.
+/// Where to place the provisioning window over Setup Assistant.
 ///
-/// **Setup Assistant does not put its card in a window of its own.** It draws
-/// one full-screen window — the blue backdrop — with the rounded card as a
-/// subview. Measured on a 15-inch Air: matching "Setup Assistant's largest
-/// window" therefore made our window full screen, which stretched the card
-/// edge to edge and hid the backdrop entirely. An earlier version of this file
-/// assumed a separate 798×595 panel window and was verified against a
-/// stand-in built to that assumption, which is why the mistake survived.
-///
-/// So a screen-sized window is recognised as the backdrop and deliberately
-/// *not* matched. The card gets `fallbackSize`, centred — which is what the
-/// reference does too: its window is its own size on Apple's backdrop, not a
-/// copy of Apple's card. Anything smaller that Setup Assistant does own is
-/// still matched, in case a release puts the card in a real window.
+/// Setup Assistant draws its card inside one full-screen window, so there is
+/// normally no card window to match; the window is then `fallbackSize`,
+/// centred. A smaller Setup Assistant window is matched if one exists.
 public enum SetupAssistantPanel {
-    /// The card's size when there is no panel window to match — which, on
-    /// current macOS, is always.
+    /// Used when there is no card window to match.
     public static let fallbackSize = CGSize(width: 800, height: 600)
 
-    /// The process is `/System/Library/CoreServices/Setup Assistant.app`;
-    /// the spelling has varied, so accept the plausible forms.
+    /// Accepted spellings of Setup Assistant's process name.
     public static let ownerNames = ["Setup Assistant", "SetupAssistant"]
 
-    /// A window covering more of the screen than this is the backdrop, not a
-    /// card. Apple's card is roughly a quarter of a laptop screen; the
-    /// backdrop is all of it, so there is a lot of room between the two.
+    /// Windows covering more of the screen than this are the backdrop.
     public static let largestPanelShareOfScreen: CGFloat = 0.6
 
-    /// The panel's rectangle in CoreGraphics display coordinates: origin
-    /// top-left of the primary display, y growing *down*. `nil` when Setup
-    /// Assistant owns nothing card-shaped, including the usual case where all
-    /// it owns is the full-screen backdrop.
-    ///
-    /// Only window metadata — owner name and bounds — which needs no Screen
-    /// Recording permission. Window *titles* would.
+    /// The card window's frame in CoreGraphics coordinates (origin top-left
+    /// of the primary display, y down), or nil if there is none. Reads only
+    /// window owner names and bounds, which need no Screen Recording access.
     public static func currentFrame(screen: CGRect) -> CGRect? {
         frame(fromWindowList: currentWindowList(), screen: screen)
     }
 
-    /// The largest window belonging to Setup Assistant that could be a card:
-    /// big enough to be one (it also draws tooltips, shadows and the odd 1×1)
-    /// and small enough not to be the backdrop.
+    /// The largest Setup Assistant window of card size: above a minimum
+    /// size and below the backdrop threshold.
     public static func frame(fromWindowList windows: [[String: Any]], screen: CGRect) -> CGRect? {
         let screenArea = screen.width * screen.height
         let panels = setupAssistantWindows(in: windows).filter { panel in
@@ -56,7 +35,7 @@ public enum SetupAssistantPanel {
         return panels.max { $0.width * $0.height < $1.width * $1.height }
     }
 
-    /// Every window Setup Assistant owns, unfiltered.
+    /// All Setup Assistant windows.
     public static func setupAssistantWindows(in windows: [[String: Any]]) -> [CGRect] {
         windows.compactMap { window in
             guard let owner = window[kCGWindowOwnerName as String] as? String,
@@ -71,9 +50,7 @@ public enum SetupAssistantPanel {
         }
     }
 
-    /// What Setup Assistant actually had on screen, for the log. The
-    /// assumption this file got wrong was invisible precisely because nothing
-    /// ever recorded it from real hardware.
+    /// Setup Assistant's windows, for the log.
     public static func windowCensus() -> String {
         let windows = setupAssistantWindows(in: currentWindowList())
         guard !windows.isEmpty else { return "none" }
@@ -87,32 +64,12 @@ public enum SetupAssistantPanel {
         return CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
     }
 
-    /// Where to put our window, in AppKit screen coordinates (origin
-    /// bottom-left of the primary display, y growing *up*).
+    /// The window frame in AppKit coordinates (origin bottom-left of the
+    /// primary display, y up).
     ///
-    /// `screen` must be the **primary** display's frame — the one with the menu
-    /// bar, at AppKit's origin. Both coordinate systems are anchored to it, so
-    /// its height is the only quantity needed to flip between them, and a panel
-    /// on a second display converts correctly for free.
-    ///
-    /// Nothing here is derived from the size of the display or the height of
-    /// the menu bar, which is what makes this portable: a 14-inch with a notch
-    /// (39 pt menu bar), a non-notched Air (24 pt) and an external monitor all
-    /// go through the same arithmetic. The bug this replaced was exactly a
-    /// menu-bar assumption.
-    ///
-    /// With no panel to match — a user session, the demo, or Setup Assistant
-    /// not yet on screen — the fallback size is centred, which is where Setup
-    /// Assistant puts its panel anyway (measured: a 595 pt panel on an 1169 pt
-    /// screen sits 287 pt from the top, dead centre).
-    ///
-    /// Doing this in AppKit is the whole point: the previous attempt positioned
-    /// a card *inside* a screen-sized SwiftUI view, which meant inferring where
-    /// that view sat relative to the screen. Every version of that inference
-    /// was a few points out — `ignoresSafeArea` makes the content screen-tall
-    /// while it stays anchored at the window's top, and oversized content gets
-    /// centred in its container. A window frame has no such ambiguity, and can
-    /// be verified from outside the process.
+    /// `screen` must be the primary display's frame; both coordinate systems
+    /// are anchored to it. Without a panel, `fallbackSize` is centred, which
+    /// matches where Setup Assistant places its card.
     public static func windowFrame(matching panel: CGRect?, screen: CGRect) -> CGRect {
         guard let panel else {
             return CGRect(
@@ -123,10 +80,8 @@ public enum SetupAssistantPanel {
             )
         }
 
-        // CoreGraphics measures y down from the top of the primary display,
-        // AppKit up from its bottom: the panel's *bottom* edge in CG is its
-        // origin in AppKit. x needs no conversion — both grow rightwards from
-        // the same edge.
+        // Flip y: the panel's bottom edge in CoreGraphics is its origin in
+        // AppKit. x is the same in both.
         return CGRect(
             x: panel.minX,
             y: screen.maxY - panel.maxY,

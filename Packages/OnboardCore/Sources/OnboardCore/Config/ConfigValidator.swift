@@ -1,9 +1,9 @@
 import Foundation
 
-/// Whole-tree validation that needs more context than a single value:
-/// duplicate ids, unreachable combinations, script path security.
+/// Validation across the whole configuration: duplicate ids, invalid key
+/// combinations and script file permissions.
 public enum ConfigValidator {
-    /// File-system checks (script path ownership) are injectable for tests.
+    /// Injectable for tests.
     public struct FileChecks: Sendable {
         public var attributesOfItem: @Sendable (String) -> (ownerUID: Int, permissions: Int)?
 
@@ -56,9 +56,7 @@ public enum ConfigValidator {
                     kind: .unreachableCombination("defaultApps sets no browser, urlSchemes or types")
                 ))
             }
-            // One hash cannot vouch for several files: which download would it
-            // verify? Better to refuse than to verify one and silently trust
-            // the rest.
+            // A single hash cannot verify several files.
             if case .wallpaper(let spec) = item.kind,
                spec.sha256 != nil, spec.sources.count > 1 {
                 errors.append(ConfigError(
@@ -80,9 +78,8 @@ public enum ConfigValidator {
         }
     }
 
-    /// Config scripts run as root: a path that a non-root user can rewrite is
-    /// a privilege escalation, so it must be root-owned and not
-    /// group/world-writable.
+    /// Scripts run as root, so the file must be owned by root and not
+    /// writable by group or others.
     private static func validateScriptPath(
         _ scriptPath: String,
         at path: String,

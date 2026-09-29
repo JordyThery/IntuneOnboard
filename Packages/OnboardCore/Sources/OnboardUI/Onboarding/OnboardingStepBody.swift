@@ -2,9 +2,8 @@ import AppKit
 import OnboardCore
 import SwiftUI
 
-/// The active card's interaction area: one subview per kind. Lives inside the
-/// card, under the step's title and description, so each subview is only the
-/// interaction — the words are the card's.
+/// The active card's controls, one view per kind. The card shows the title
+/// and description.
 struct OnboardingStepBody: View {
     let step: StepState
     let model: OnboardingViewModel
@@ -44,10 +43,7 @@ struct OnboardingStepBody: View {
 
 // MARK: - message
 
-/// Information only: the card already shows the title and the full message,
-/// so there is nothing left to draw. Viewing it is completing it — the
-/// auto-perform writes the record, Continue lights up, and the reader moves
-/// on when they're done reading.
+/// Nothing to show; the card displays the message.
 private struct MessageStep: View {
     let step: StepState
     let model: OnboardingViewModel
@@ -65,7 +61,7 @@ private struct MessageStep: View {
 
 // MARK: - wallpaper
 
-/// A grid of rounded wallpaper thumbnails; picking one applies it.
+/// Wallpaper thumbnails; selecting one applies it.
 private struct WallpaperGrid: View {
     let spec: OnboardingItem.WallpaperSpec
     let step: StepState
@@ -126,8 +122,7 @@ private struct WallpaperThumbnail: View {
         )
     }
 
-    /// Missing file or unreachable URL: a quiet gradient rather than a broken
-    /// image — routine before the daemon has downloaded remote sources.
+    /// A gradient for sources not yet available locally.
     private var placeholder: some View {
         LinearGradient(
             colors: [.accentColor.opacity(0.45), .accentColor.opacity(0.2)],
@@ -144,10 +139,8 @@ private struct WallpaperThumbnail: View {
 
 // MARK: - dock
 
-/// The Dock as it *would look* after the chosen action — computed from the
-/// user's current Dock, switching live with the radio, nothing applied until
-/// the button. Previewing beats describing: "replace" and "merge" are hard to
-/// tell apart in words and obvious side by side.
+/// A preview of the Dock after the selected strategy, computed from the
+/// current Dock. Nothing is applied until the button is pressed.
 private struct DockChoice: View {
     let spec: OnboardingItem.DockSpec
     let step: StepState
@@ -163,8 +156,7 @@ private struct DockChoice: View {
         _chosen = State(initialValue: spec.strategies.first ?? .add)
     }
 
-    /// The preview simulates what the action would do, so it skips missing
-    /// apps the same way the action will.
+    /// Missing apps are left out, as the action skips them.
     private var recommendedPresent: [String] {
         spec.items.map(resolvedPath).filter { FileManager.default.fileExists(atPath: $0) }
     }
@@ -184,8 +176,7 @@ private struct DockChoice: View {
                     .foregroundStyle(.secondary)
             } else {
                 if spec.strategies.count > 1 {
-                    // `String()`, not "": the literal is a LocalizedStringKey
-                    // and extraction plants an empty String Catalog entry.
+                    // `String()`, not "": keeps an empty entry out of the String Catalog.
                     Picker(String(), selection: $chosen) {
                         ForEach(spec.strategies, id: \.self) { action in
                             Text(OnboardingStrings.dockStrategyLabel(action)).tag(action)
@@ -206,12 +197,8 @@ private struct DockChoice: View {
         .task { currentDock = await model.currentDockItems() }
     }
 
-    /// Like the real Dock: Finder pinned left, Trash pinned right (dockutil
-    /// manages neither, and a preview without them reads as wrong — user
-    /// feedback from the first M4 run), with only the apps in between
-    /// scrolling when they don't fit. A real Dock easily holds 15+ items, and
-    /// on hardware a plain HStack bled past the material and out of the
-    /// window.
+    /// Finder at the left and Trash at the right, as in the Dock; the apps
+    /// between them scroll when they do not fit.
     private var dockPreview: some View {
         HStack(spacing: 8) {
             ItemIcon(spec: .path("/System/Library/CoreServices/Finder.app"), size: 32)
@@ -254,15 +241,12 @@ private struct DockChoice: View {
             .frame(width: 1, height: 34)
     }
 
-    /// The Dock's own empty-trash artwork. A private path, so it may move in
-    /// a macOS release — the preview simply omits Trash when it does, rather
-    /// than showing a generic substitute next to real icons.
+    /// The Dock's Trash image. A private path; Trash is omitted if missing.
     private static let trashImage: NSImage? = NSImage(
         contentsOfFile: "/System/Library/CoreServices/Dock.app/Contents/Resources/s-trashempty2@2x.png"
     )
 
-    /// `bundleid:` entries resolve to their app's path for the preview;
-    /// unresolvable ones read as missing, exactly as the action treats them.
+    /// `bundleid:` entries resolve to the app path; nil if not installed.
     private func resolvedPath(_ item: String) -> String {
         guard item.hasPrefix("bundleid:") else { return item }
         let bundleID = String(item.dropFirst("bundleid:".count))
@@ -270,9 +254,7 @@ private struct DockChoice: View {
     }
 }
 
-/// The item's configured button title, or the kind's fallback. The profile's
-/// title is already-resolved text from the plist; the fallback is ours and
-/// stays a resource until it is rendered.
+/// The configured button title, or the kind's default.
 private func buttonLabel(for step: StepState, fallback: LocalizedStringResource) -> Text {
     if let title = step.item.buttonTitle?.resolved() {
         Text(title)
@@ -283,24 +265,19 @@ private func buttonLabel(for step: StepState, fallback: LocalizedStringResource)
 
 // MARK: - defaultApps
 
-/// Candidates as large selectable app icons — one icon renders as a
-/// confirmation, several as a pick-one.
+/// Candidate apps as selectable icons: one to confirm, several to choose from.
 private struct DefaultAppsChoice: View {
     let spec: OnboardingItem.DefaultAppsSpec
     let step: StepState
     let model: OnboardingViewModel
 
-    /// target key → picked bundle id; seeded with every sole candidate.
+    /// Target key to selected bundle id; single candidates preselected.
     @State private var picks: [String: String]
 
-    /// Targets with their candidates filtered to what is actually
-    /// installed. An absent app can't be picked, and a target
-    /// with nothing installed doesn't render (derivation skips it too).
+    /// Targets with only installed candidates; targets with none are hidden.
     private let actionable: [(target: DefaultAppTarget, candidates: [String])]
 
-    /// target key → the app handling it right now. Only read when the step
-    /// allows keeping it: "Keep current" is the one case where the user needs
-    /// to see what current *is* before deciding.
+    /// Target key to current handler, when `allowKeepExisting` is set.
     private let currentHandlers: [String: String]
 
     init(spec: OnboardingItem.DefaultAppsSpec, step: StepState, model: OnboardingViewModel) {
@@ -315,10 +292,8 @@ private struct DefaultAppsChoice: View {
         }
         self.actionable = installed
 
-        // The current handler joins the candidates as a tile of its own, so
-        // keeping it is a choice you can see rather than a link you take on
-        // trust. Only where it is offered, and only when it isn't already
-        // one of the configured candidates.
+        // Offer the current handler as a choice when it is not already a
+        // candidate.
         var handlers: [String: String] = [:]
         if spec.allowKeepExisting {
             for (target, candidates) in installed {
@@ -341,14 +316,12 @@ private struct DefaultAppsChoice: View {
         actionable.allSatisfy { picks[$0.target.key] != nil }
     }
 
-    /// True when every pick is the app already handling that target. Sending
-    /// those through `utiluti` would ask macOS to confirm a change that isn't
-    /// one, so this is "keep current" by another route.
+    /// True when every selection is the current handler; no change is made.
     private var picksAreAllCurrent: Bool {
         actionable.allSatisfy { picks[$0.target.key] == currentHandlers[$0.target.key] }
     }
 
-    /// Candidates plus the current handler, when there is one to show.
+    /// Candidates, plus the current handler when offered.
     private func tiles(for entry: (target: DefaultAppTarget, candidates: [String])) -> [String] {
         guard let current = currentHandlers[entry.target.key] else { return entry.candidates }
         return entry.candidates + [current]
@@ -357,8 +330,7 @@ private struct DefaultAppsChoice: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if actionable.isEmpty {
-                // Nothing to act on: the step derives as skipped and Continue
-                // enables by itself; this just says why.
+                // No targets: the step is skipped.
                 Text(OnboardingStrings.appsNotInstalled)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -386,11 +358,8 @@ private struct DefaultAppsChoice: View {
                     .foregroundStyle(.secondary)
             }
 
-            // The button grays out once the step is *measured* complete — the
-            // system default actually changed (or "keep current" was chosen) —
-            // not merely because it was pressed: utiluti exiting 0 only means
-            // the request was made, and the user can still decline macOS's
-            // prompt. Until then it stays live and Continue stays disabled.
+            // Disabled once the change is measured, not when pressed: the
+            // user can decline the macOS prompt.
             if !actionable.isEmpty { confirmRow }
         }
     }
@@ -420,7 +389,7 @@ private struct DefaultAppsChoice: View {
 private struct AppCandidate: View {
     let bundleID: String
     let isPicked: Bool
-    /// The app handling this target today, labelled as such.
+    /// The current handler, labelled as such.
     var isCurrent = false
     let dimsUnpicked: Bool
     let action: () -> Void
@@ -447,10 +416,8 @@ private struct AppCandidate: View {
         .buttonStyle(.plain)
     }
 
-    /// The app's real name when it is installed; the id's last component when
-    /// not — candidates for apps provisioning hasn't finished installing yet.
-    /// displayName(atPath:) keeps ".app" when Finder shows extensions, so it
-    /// comes off explicitly.
+    /// The app's name if installed, otherwise the bundle id's last part.
+    /// ".app" is removed, since displayName(atPath:) can include it.
     private var displayName: String {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
             let name = FileManager.default.displayName(atPath: url.path)
@@ -469,10 +436,7 @@ private struct OpenStep: View {
     let model: OnboardingViewModel
 
     var body: some View {
-        // Pressing this IS completing the step for the manual flavour —
-        // launching is the act, and there is nothing to verify (that is
-        // what validatePath is for). A separate "Mark as done" next to it
-        // was redundant (user feedback from the first M4 run).
+        // For `manual`, opening the target completes the step.
         Button {
             Task { await model.perform() }
         } label: {
@@ -484,8 +448,7 @@ private struct OpenStep: View {
 
 // MARK: - demoteUser
 
-/// Automatic: runs when the step becomes active, no button. What the user
-/// sees is the outcome — the card's own check — not a decision.
+/// Runs automatically when active; the card shows the result.
 private struct DemoteStep: View {
     let step: StepState
     let model: OnboardingViewModel

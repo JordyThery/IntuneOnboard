@@ -1,19 +1,16 @@
 import Foundation
 
-/// Everything an action needs to execute, injectable for tests.
+/// Dependencies for provisioning actions; injectable for tests.
 public struct ActionContext: Sendable {
     public var processRunner: any ProcessRunning
-    /// Path to the vendored Installomator.sh inside the app bundle.
+    /// The bundled Installomator.sh.
     public var installomatorPath: String
     public var installomatorDefaultOptions: [String]
-    /// Receives raw Installomator output for the dedicated log file.
+    /// Installomator output, for its own log file.
     public var installomatorLogSink: (@Sendable (String) -> Void)?
-    /// Receives the run's own narration — item transitions and script output —
-    /// for `onboard.log`, which is the only log readable during Setup
-    /// Assistant (⌘L, first tab). Without it the engine's story lived in the
-    /// unified log alone, where nobody at that point in setup can reach it.
+    /// Item transitions and script output, for `onboard.log`.
     public var logSink: (@Sendable (String) -> Void)?
-    /// Live status-text updates ("status:" script lines).
+    /// Receives `status:` lines from scripts.
     public var statusTextHandler: (@Sendable (String) -> Void)?
     public var fileExists: @Sendable (String) -> Bool
     public var sleep: @Sendable (Duration) async -> Void
@@ -39,7 +36,7 @@ public struct ActionContext: Sendable {
     }
 }
 
-/// What an action reports back to the engine.
+/// The result of one action.
 public struct ActionResult: Sendable, Equatable {
     public let outcome: ItemOutcome
     public let status: StatusKind
@@ -55,7 +52,7 @@ public struct ActionResult: Sendable, Equatable {
 }
 
 public enum ProvisioningActionRunner {
-    /// Executes one provisioning item and applies validatePath semantics.
+    /// Runs one item, then checks `validatePath`.
     public static func execute(_ item: ProvisioningItem, context: ActionContext) async -> ActionResult {
         let raw: ActionResult
         switch item.kind {
@@ -69,7 +66,7 @@ public enum ProvisioningActionRunner {
             raw = await WaitForPathAction.run(path: path, condition: condition, timeout: item.timeout, context: context)
         }
 
-        // validatePath applies after any successful run, whatever the kind.
+        // For every kind.
         if raw.outcome == .success, let expected = item.validatePath, !context.fileExists(expected) {
             return ActionResult(
                 outcome: .failed,

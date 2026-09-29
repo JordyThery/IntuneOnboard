@@ -3,10 +3,7 @@ import Testing
 @testable import OnboardCLI
 @testable import OnboardCore
 
-/// `onboardd status` is what an administrator reads in Intune, one line per
-/// Mac, across hundreds of them. Its wording is a product surface: "complete"
-/// has to mean complete, and the device half finishing must not be reported
-/// as the whole job being done.
+/// The single line reported by `onboardd status` and the custom attribute.
 @Suite struct StatusReportingTests {
     private func device(complete: Bool, items: [String: ItemOutcome]) -> DeviceState {
         var state = DeviceState()
@@ -29,8 +26,7 @@ import Testing
         )
     }
 
-    /// The case that matters: the device is done, the person at the keyboard
-    /// is not. Reporting only the device half would call this Mac finished.
+    /// Provisioning complete with onboarding outstanding is reported as such.
     @Test func aFinishedDeviceWithAnUnfinishedUserSaysSo() {
         let line = Status.singleLine(
             device: device(complete: true, items: ["a": .success, "b": .success]),
@@ -56,8 +52,7 @@ import Testing
         #expect(line.hasPrefix("provisioning: failed (1 failed, 2/2 finished)"))
     }
 
-    /// A user who has logged in but not yet done anything is distinct from a
-    /// user who is partway through — and from no user at all.
+    /// Not started, in progress and no user are distinct.
     @Test func aUserWithNoStateYetIsNotTheSameAsNoUser() {
         let started = Status.singleLine(
             device: device(complete: true, items: ["a": .success]),
@@ -72,7 +67,7 @@ import Testing
         #expect(nobody.hasSuffix("onboarding: no console user"))
     }
 
-    /// One line, no newlines: Intune stores the value verbatim.
+    /// A single line.
     @Test func theValueIsASingleLine() {
         let line = Status.singleLine(
             device: device(complete: true, items: ["a": .success]),
@@ -82,8 +77,7 @@ import Testing
         #expect(line.count < 256, "custom attribute values should stay short and readable")
     }
 
-    /// Reporting runs as root, so "the current user" is root — the wrong
-    /// answer. The store has to be resolved from the console user's home.
+    /// The console user's store is used, since reporting runs as root.
     @Test func aUsersStoreIsFoundByHomeDirectory() throws {
         let store = try #require(StateStore.forUser(named: NSUserName()))
         #expect(store.rootDirectory.path.hasPrefix(NSHomeDirectory()))
@@ -91,15 +85,13 @@ import Testing
         #expect(StateStore.forUser(named: "no-such-account-exists") == nil)
     }
 
-    /// A Mac the profile deliberately refuses is not the same as one the
-    /// package never reached, and in a list of hundreds "not started" cannot
-    /// tell them apart.
+    /// An ineligible Mac is reported distinctly.
     @Test func anIneligibleMacSaysSoInsteadOfNotStarted() {
         #expect(
             Status.singleLine(device: nil, onboarding: nil, ineligible: true)
                 == "provisioning: not applicable (requireADE)"
         )
-        // The flag is the only thing that changes the answer.
+        // Only the flag differs.
         #expect(
             Status.singleLine(device: nil, onboarding: nil, ineligible: false)
                 != "provisioning: not applicable (requireADE)"

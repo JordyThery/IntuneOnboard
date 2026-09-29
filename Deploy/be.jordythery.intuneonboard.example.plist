@@ -1,171 +1,99 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Intune Onboard — REFERENCE configuration
-    Domain: be.jordythery.intuneonboard   ·   schemaVersion 1
+    Intune Onboard: example configuration with every key.
+    Domain be.jordythery.intuneonboard, schemaVersion 1.
 
-    Every key the app reads appears below, with its default and what it does.
-    Copy this file, delete what you don't need, and keep the rest: absent keys
-    fall back to the defaults noted in each comment.
+    Upload be.jordythery.intuneonboard.example.mobileconfig, which is generated
+    from this file, as a Custom profile assigned to a device group. This file
+    is for reading and for onboardd validate-config.
 
-    HOW TO DEPLOY
-      Upload be.jordythery.intuneonboard.reference.mobileconfig, not this file:
-        Intune → Devices → macOS → Configuration → Templates → Custom
-      It is generated from this file, so the settings are identical.
+    Safe to deploy as a test: items are optional, demoteUser is disabled and
+    requireADE is off.
 
-      Intune's "Preference file" template REJECTS this document with
-      "We couldn't validate your file" (error 2016341103, negative): it wants
-      bare key/value pairs and adds the <plist><dict> wrapper itself, and a
-      plist cannot be valid XML without that wrapper. So this file is the
-      readable, validatable, annotated reference — and the file to feed
-      onboardd validate-config — while the .mobileconfig is what you upload.
+    "localized" values accept a string or a dictionary of language code to
+    string. "icon" values accept symbol:<name>, bundleid:<id>, name:<asset>,
+    an absolute path, or an https URL.
 
-      Assign to a DEVICE group. A user-assigned profile lands in
-      /Library/Managed Preferences/<username>/, which the root daemon never
-      reads and which does not exist during Setup Assistant at all.
-
-    BEFORE YOU DEPLOY THIS FILE AS-IS
-      It is written to be safe to deploy as a smoke test:
-        · every illustrative item is required=false, so nothing here can block
-          the completion marker;
-        · demoteUser is enabled=false, because it would demote your test user;
-        · requireADE is false, so it runs on a manually enrolled Mac too.
-      A configuration error is FATAL — the app refuses to run rather than run a
-      half-understood config — so the one example that cannot validate on a
-      clean Mac (a script referenced by path) is left commented out below.
-
-    VALIDATING
-      sudo onboardd validate-config (pass this file with the "path" option —
-      spelled with two leading dashes, which XML forbids inside a comment, so
-      see Docs/Configuration.md for the exact line). The file must be
-      root-owned: it is read as root and can contain scripts that run as root.
-
-    LOCALIZED STRINGS
-      Anywhere a comment says "localized", you may use either a plain string or
-      a dict of language code → string. Resolution: exact tag (nl-BE) → base
-      language (nl) → en → first key sorted. See provisioning.title for both.
-
-    ICONS
-      Anywhere a comment says "icon", these forms are accepted:
-        symbol:<SF Symbol>          symbol:shield.lefthalf.filled
-        bundleid:<bundle id>        bundleid:com.microsoft.edgemac
-        name:<asset name>           name:CompanyGlyph
-        /absolute/path.png          also accepts /Applications/Foo.app
-        https://…                   https only; fetched once per process
-      Unresolvable icons fall back to a placeholder glyph — normal in provisioning,
-      where bundleid: icons appear as their apps install. An https icon must be
-      reachable WITHOUT authentication: a link that redirects to a sign-in page,
-      or a host that refuses non-browser clients, shows the placeholder.
-      (Wikipedia's upload URLs fail this way; a CDN that serves plain PNGs
-      to any client works.)
+    See Docs/Configuration.md for details.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- ════════════════════════════════════════════════════════════════════
-	     TOP LEVEL
-	     ════════════════════════════════════════════════════════════════════ -->
+	<!-- ═══ Top level ═══ -->
 
-	<!-- Schema of this file. Default 1. A different MAJOR version makes the
-	     app refuse to run and say so loudly, rather than guess. -->
+	<!-- Default 1. Other versions are rejected. -->
 	<key>schemaVersion</key>
 	<integer>1</integer>
 
-	<!-- Dry run. Default false.
-	     true → both stages render everything and change nothing: provisioning
-	     items are simulated instead of executed, onboarding actions pretend,
-	     and no completion marker is written — so the run repeats on every
-	     launch/login until the key is removed. Both screens wear a DRY RUN
-	     badge. Deploy with true to review a profile on a test Mac. -->
+	<!-- Default false. Renders both stages without changing the Mac. -->
 	<key>dryRun</key>
 	<false/>
 
-	<!-- Require Automated Device Enrollment. Default false.
-	     true → checked with `profiles status -type enrollment`; a Mac that is
-	     not ADE-enrolled exits 12 and provisions nothing. Leave false while
-	     testing on manually enrolled Macs. -->
+	<!-- Default false. If true, nothing runs on a Mac not enrolled through ADE. -->
 	<key>requireADE</key>
 	<false/>
 
 
-	<!-- Log rotation for /var/log/IntuneOnboard/onboard.log. -->
+	<!-- Log rotation for /var/log/IntuneOnboard. -->
 	<key>logging</key>
 	<dict>
-		<!-- Rotate past this size. Default 10. -->
+		<!-- Default 10. -->
 		<key>maxFileSizeMB</key>
 		<integer>10</integer>
-		<!-- Rotated files to keep. Default 3. -->
+		<!-- Default 3. -->
 		<key>keepArchives</key>
 		<integer>3</integer>
 	</dict>
 
-	<!-- ════════════════════════════════════════════════════════════════════
-	     ORGANIZATION — everything that brands the card
-	     ════════════════════════════════════════════════════════════════════ -->
+	<!-- ═══ Organization ═══ -->
 	<key>organization</key>
 	<dict>
-		<!-- REQUIRED. Drawn as text in the header when there is no logo, so
-		     it is a perfectly good first step on its own. -->
+		<!-- Required. Shown when there is no logo. -->
 		<key>name</key>
 		<string>Contoso</string>
 
-		<!-- icon. Centred in the header band at 76 pt. An SF Symbol is drawn
-		     white so it reads against the band.
-		     Provisioning runs BEFORE anything has been copied to the Mac, so a
-		     local path is still empty when the card first appears — use an
-		     https URL if you want the logo on the first screen. -->
+		<!-- icon. Use an https URL: local files are usually absent during
+		     provisioning. -->
 		<key>logo</key>
 		<string>https://example.com/branding/logo.png</string>
 
-		<!-- #RRGGBB. Default system blue. Colours the header band, the
-		     progress bar and the controls — the single highest-value key. -->
+		<!-- #RRGGBB. Default system blue. -->
 		<key>accentColor</key>
 		<string>#0F6CBD</string>
 
-		<!-- localized. Shown under a FAILED provisioning run, where the next
-		     move is a phone call. Not shown otherwise: the footer carries a
-		     fixed credit line, and `help` below is the everyday route to the
-		     service desk. Worth setting — it is the one line a stranded user
-		     reads. -->
+		<!-- localized. Shown when provisioning fails. -->
 		<key>supportText</key>
 		<string>IT service desk · +32 (0)3 123 45 67</string>
 
-		<!-- https only. -->
+		<!-- https. -->
 		<key>supportURL</key>
 		<string>https://example.com/support</string>
 
-		<!-- Puts a circled question mark in the card's lower right. Any one
-		     key below is enough; with the whole dict absent, no button. -->
+		<!-- Adds a help button. Any one key is enough. -->
 		<key>help</key>
 		<dict>
-			<!-- localized. Popover heading. -->
+			<!-- localized. -->
 			<key>title</key>
 			<string>Need a hand?</string>
-			<!-- localized. Popover body. Markdown is rendered. -->
+			<!-- localized, Markdown. -->
 			<key>message</key>
 			<string>Scan this code to reach the **IT service desk**.</string>
-			<!-- https only. Rendered AS A QR CODE, not a link: during Setup
-			     Assistant there is no browser and nobody is signed in, but
-			     everyone has a phone. -->
+			<!-- https. Shown as a QR code. -->
 			<key>url</key>
 			<string>https://example.com/support</string>
 		</dict>
 	</dict>
 
-	<!-- ════════════════════════════════════════════════════════════════════
-	     NETWORK — preflight reachability
-	     ════════════════════════════════════════════════════════════════════ -->
+	<!-- ═══ Network ═══ -->
 	<key>network</key>
 	<dict>
-		<!-- https only. Preflight FAILS (exit 13) if any is unreachable, so
-		     list only what provisioning genuinely cannot proceed without.
-		     Default []. GitHub is deliberately not needed: Installomator is
-		     bundled in the app. -->
+		<!-- Default []. Provisioning stops if any is unreachable. -->
 		<key>requiredURLs</key>
 		<array>
 			<string>https://officecdn.microsoft.com</string>
 		</array>
 
-		<!-- https only. Logged when unreachable, never fatal. Default []. -->
+		<!-- Default []. Logged if unreachable. -->
 		<key>warnURLs</key>
 		<array>
 			<string>https://download.teamviewer.com</string>
@@ -176,19 +104,12 @@
 		<integer>30</integer>
 	</dict>
 
-	<!-- ════════════════════════════════════════════════════════════════════
-	     INSTALLOMATOR
-	     ════════════════════════════════════════════════════════════════════ -->
+	<!-- ═══ Installomator ═══ -->
 	<key>installomator</key>
 	<dict>
-		<!-- Applied to every installomator item, before that item's own
-		     options. Default, if this key is absent:
-		         NOTIFY=silent  BLOCKING_PROCESS_ACTION=ignore  INSTALL=force
-		         IGNORE_APP_STORE_APPS=yes  LOGGING=REQ
-		     Each option must match ^[A-Z_]+=[A-Za-z0-9_.,:/ @-]*$ because
-		     Installomator eval's them. DEBUG= is rejected at validation time
-		     in any position: the app appends DEBUG=0 itself, last, so a config
-		     can never re-enable dry-run and silently install nothing. -->
+		<!-- Applied to every installomator item. The values below are the
+		     default. Quote values containing spaces: KEY="a b". DEBUG is not
+		     accepted. -->
 		<key>defaultOptions</key>
 		<array>
 			<string>NOTIFY=silent</string>
@@ -199,12 +120,10 @@
 		</array>
 	</dict>
 
-	<!-- ════════════════════════════════════════════════════════════════════
-	     PROVISIONING — device provisioning, over Setup Assistant, as root
-	     ════════════════════════════════════════════════════════════════════ -->
+	<!-- ═══ Provisioning: during Setup Assistant, as root ═══ -->
 	<key>provisioning</key>
 	<dict>
-		<!-- localized — shown here as a language dict. -->
+		<!-- localized. -->
 		<key>title</key>
 		<dict>
 			<key>en</key>
@@ -215,64 +134,43 @@
 			<string>Configuration de votre Mac</string>
 		</dict>
 
-		<!-- localized — and a plain string is just as valid. Used when no
-		     phase-specific message applies. -->
+		<!-- localized. -->
 		<key>message</key>
 		<string>This takes a few minutes. Keep the Mac plugged in and connected to the network.</string>
 
-		<!-- Show the "About this Mac…" link in the card's footer (model, chip,
-		     memory, storage, serial, macOS, network, elapsed). Default true. -->
+		<!-- Default true. Shows device details. -->
 		<key>showDeviceInfo</key>
 		<true/>
 
-		<!-- Let the run finish, and Setup Assistant carry on, even when a
-		     required item failed. Default false. -->
+		<!-- Default false. Lets Setup Assistant continue after a required item
+		     fails. -->
 		<key>allowContinueOnError</key>
 		<false/>
 
-		<!-- Name the Mac before the items run (no interactive data entry): ComputerName gets the rendered name verbatim;
-		     LocalHostName and HostName get it Bonjour-sanitized (ASCII
-		     letters/digits/hyphens, max 63). Tokens — device-derived only:
-		       %serial%        C304JQC4KM
-		       %udid%          the IOPlatformUUID
-		       %model%         MacBook Air        (marketing family)
-		       %model-short%   MacBook            (first word)
-		     Substring modifiers: %serial:6% first six, %serial:-6% last six,
-		     %serial:=6% center six. %% is a literal %. A token with no value
-		     on the device leaves the name unchanged (never a partial name);
-		     an unknown token is a configuration error. Commented out here
-		     because a live template would RENAME every Mac this smoke-test
-		     profile is deployed to.
+		<!-- Sets the computer and host names. Tokens: %serial%, %udid%,
+		     %model%, %model-short%; %serial:6% first six characters,
+		     %serial:-6% last six, %serial:=6% middle six. Commented out
+		     because it renames every Mac it is deployed to.
 		<key>deviceNameTemplate</key>
-		<string>L9P-%serial%</string>
+		<string>CONTOSO-%serial:-6%</string>
 		-->
 
 
-		<!-- REQUIRED. One tile each, in order. They run sequentially.
-		     COMMON ITEM KEYS (all kinds):
-		       id            REQUIRED. ^[A-Za-z0-9._-]{1,64}$, unique within
-		                     the phase. State is keyed on it, so keep it stable
-		                     — renaming an id re-runs the item.
-		       kind          REQUIRED. Unknown kind → configuration error.
-		       title         localized. Default: per kind (installomator reads
-		                     name= from the bundled label, then the label id).
-		       subtitle      localized. Default: none.
-		       icon          icon. Default: per kind.
-		       required      Default true. A failure blocks the completion
-		                     marker; false records it and moves on.
-		       enabled       Default true. false → recorded as skipped, which
-		                     never blocks the marker.
-		       timeout       Seconds. Default: per kind (below).
-		       validatePath  Must exist after the item succeeds, or the item is
-		                     marked failed. Catches "the installer exited 0 and
-		                     installed nothing". -->
+		<!-- Required. Run in order. Keys for every item:
+		       id            Required. [A-Za-z0-9._-]{1,64}, unique. Keep it stable.
+		       kind          Required.
+		       title         localized.
+		       subtitle      localized.
+		       icon          icon.
+		       required      Default true. A failure withholds completion.
+		       enabled       Default true.
+		       timeout       Seconds. Default per kind.
+		       validatePath  Must exist after success, or the item fails. -->
 		<key>items</key>
 		<array>
-			<!-- ── kind: installomator ──────────────────────────────────────
-			     timeout default 1800.
-			       label    REQUIRED. An Installomator label.
-			       options  Appended AFTER installomator.defaultOptions, so a
-			                repeated option here wins. Same allowlist. -->
+			<!-- ── installomator (timeout 1800) ──
+			       label    Required.
+			       options  Added after defaultOptions. -->
 			<dict>
 				<key>id</key>
 				<string>rosetta</string>
@@ -301,9 +199,7 @@
 				<string>microsoftoffice365</string>
 				<key>title</key>
 				<string>Microsoft 365</string>
-				<!-- An https icon, which is how you get real artwork onto the
-				     first screen. Must be served as a plain PNG to any client,
-				     with no sign-in redirect. -->
+				<!-- Must be reachable without authentication. -->
 				<key>icon</key>
 				<string>https://example.com/branding/microsoft-365.png</string>
 				<key>options</key>
@@ -325,34 +221,23 @@
 				<string>microsoftedge</string>
 				<key>title</key>
 				<string>Microsoft Edge</string>
-				<!-- bundleid: resolves as soon as the app exists, so the tile
-				     fills in during the run. -->
+				<!-- Appears once the app is installed. -->
 				<key>icon</key>
 				<string>bundleid:com.microsoft.edgemac</string>
-				<!-- Proof it really installed. -->
+				<!-- Confirms the install. -->
 				<key>validatePath</key>
 				<string>/Applications/Microsoft Edge.app</string>
 				<key>required</key>
 				<false/>
 			</dict>
 
-			<!-- ── kind: script ─────────────────────────────────────────────
-			     timeout default 1800. Runs as ROOT.
-			       script            Inline source. Exactly one of script/path.
-			                         Written to a 0700 root-only temp dir.
-			       path              A script already on disk. Exactly one of
-			                         script/path. MUST be root-owned and not
-			                         group/world-writable — a config script runs
-			                         as root, so a user-writable file would be a
-			                         privilege escalation. See the commented
-			                         example after this one.
-			       interpreter       Default /bin/zsh. /bin/bash also allowed;
-			                         nothing else is.
+			<!-- ── script (timeout 1800), runs as root ──
+			       script            Inline source. Use script or path.
+			       path              Root-owned, not group- or world-writable.
+			       interpreter       /bin/zsh (default) or /bin/bash.
 			       arguments         Default [].
 			       successExitCodes  Default [0].
-			       statusFromOutput  Default true. stdout lines beginning
-			                         "status:" replace the tile's status text,
-			                         which is how a long script reports itself. -->
+			       statusFromOutput  Default true. "status:" lines update the item. -->
 			<dict>
 				<key>id</key>
 				<string>smoke-test</string>
@@ -388,14 +273,11 @@ exit 0
 				<integer>300</integer>
 			</dict>
 
-			<!-- ── kind: script, by path ────────────────────────────────────
-			     Deliberately commented out: the file must exist AND be
-			     root-owned when the config is validated, and a configuration
-			     error is fatal — so an example pointing at a path that isn't
-			     there yet would stop the whole run. Ship the script first:
-			         sudo install -o root -g wheel -m 755 my.sh \
-			             /Library/Application\ Support/Contoso/my.sh
-			     then uncomment.
+			<!-- ── script by path ──
+			     Commented out: the file must exist when the profile is validated.
+			     Install it first:
+			         sudo install -o root -g wheel -m 755 baseline.sh \
+			             /Library/Application\ Support/Contoso/baseline.sh
 
 			<dict>
 				<key>id</key>
@@ -411,11 +293,9 @@ exit 0
 			</dict>
 			-->
 
-			<!-- ── kind: wait ───────────────────────────────────────────────
-			     A deliberate pause, shown as a tile so the wait is visible
-			     rather than looking like a hang.
-			       seconds  REQUIRED, > 0. Also becomes the item's timeout.
-			       message  localized. Shown while waiting. -->
+			<!-- ── wait ──
+			       seconds  Required. Also the timeout.
+			       message  localized. -->
 			<dict>
 				<key>id</key>
 				<string>settle</string>
@@ -433,10 +313,8 @@ exit 0
 				<false/>
 			</dict>
 
-			<!-- ── kind: awaitPath ────────────────────────────────────────
-			     timeout default 300. Waits for something another system does —
-			     an Intune-delivered app, a profile's side effect.
-			       path       REQUIRED.
+			<!-- ── awaitPath (timeout 300) ──
+			       path       Required.
 			       condition  "exists" (default) or "absent". -->
 			<dict>
 				<key>id</key>
@@ -461,9 +339,7 @@ exit 0
 		</array>
 	</dict>
 
-	<!-- ════════════════════════════════════════════════════════════════════
-	     ONBOARDING — the per-user stage, after first login (M4)
-	     ════════════════════════════════════════════════════════════════════ -->
+	<!-- ═══ Onboarding: at first login, as the user ═══ -->
 	<key>onboarding</key>
 	<dict>
 		<!-- localized. -->
@@ -473,62 +349,40 @@ exit 0
 		<key>message</key>
 		<string>A few last things, just for this account.</string>
 
-		<!-- Opened when the user presses Done: an app path, bundleid:<id>, or
-		     any URL with a scheme. Onboarding's only post-run hook. -->
+		<!-- Opened when the user presses Done: app path, bundleid:<id> or URL. -->
 		<key>launchOnCompletion</key>
 		<string>bundleid:com.microsoft.CompanyPortalMac</string>
 
-		<!-- Hide other apps when onboarding launches. Default TRUE;
-		     suppressed under dryRun. Note this fires ONCE,
-		     at launch: nothing stops the user opening something afterwards —
-		     windowPosition: focus is what actually holds the screen. false
-		     here so this smoke-test profile stays polite. -->
+		<!-- Default true. Hides other apps once, at launch. -->
 		<key>hideOtherApps</key>
 		<false/>
 
-		<!-- false removes ⌘Q, greys the close AND minimize buttons, and keeps
-		     the window above other apps until every step is done. Default
-		     true. (Minimize goes too because the app has no Dock icon, so a
-		     minimized window would have nowhere to come back from.) ⌃⌥⌘Q
-		     remains the administrator's way out either way. -->
+		<!-- Default true. false disables quitting, closing and minimizing until
+		     all steps are done. -->
 		<key>allowQuit</key>
 		<true/>
 
-		<!-- "center" (default) or "focus". focus fills every screen with a
-		     backdrop beneath the onboarding card, so nothing else can be seen or
-		     clicked while there is work left — it is lifted automatically
-		     while an `open` step waits on the user, or the app they were just
-		     told to sign into would be stranded behind it, and it comes down
-		     for good once every step is done. Other values ("left"/"right"
-		     (move the window, hide the sidebar) are NOT supported and are a
-		     configuration error rather than a silent fallback to center. -->
+		<!-- "center" (default) or "focus". focus covers every screen behind
+		     the window until all steps are done. -->
 		<key>windowPosition</key>
 		<string>center</string>
 
-		<!-- Fills the focus backdrop; any icon source (path or https URL).
-		     Omit to use the Mac's current desktop picture, like the
-		     reference's `wallpaper` default. Ignored unless windowPosition is
-		     focus. -->
+		<!-- icon. Backdrop for focus. Default: the current wallpaper. -->
 		<key>background</key>
 		<string>https://example.com/branding/backdrop.jpg</string>
 
-		<!-- Blurs the focus backdrop. Default false. Ignored unless
-		     windowPosition is focus. -->
+		<!-- Default false. Blurs the focus backdrop. -->
 		<key>blur</key>
 		<false/>
 
-		<!-- REQUIRED. Same common item keys as provisioning, plus:
-		       mode         "automatic" (runs by itself) or "interactive" (the
-		                    user presses a button). Default: per kind.
-		                    defaultApps and open are ALWAYS interactive —
-		                    macOS requires the user to confirm those changes.
-		       buttonTitle  localized. The button for an interactive item. -->
+		<!-- Required. Item keys as above, plus:
+		       mode         "automatic" or "interactive". defaultApps and open
+		                    are always interactive.
+		       buttonTitle  localized. -->
 		<key>items</key>
 		<array>
-			<!-- ── kind: message (automatic) ────────────────────────────────
-			     Information only — a title and a message: no interaction,
-			     viewing it completes it and Continue lights up. Welcome text,
-			     handoff instructions. -->
+			<!-- ── message ──
+			     Informational. Completes when viewed. -->
 			<dict>
 				<key>id</key>
 				<string>welcome</string>
@@ -544,28 +398,12 @@ exit 0
 				<false/>
 			</dict>
 
-			<!-- Throughout onboarding: SCALAR MEANS CONFIRM, ARRAY MEANS
-			     CHOOSE. One value renders a confirmation; several render a
-			     picker the user chooses from. -->
+			<!-- A single value asks the user to confirm; an array lets them choose. -->
 
-			<!-- ── kind: wallpaper (automatic) ──────────────────────────────
-			       source          REQUIRED. Absolute path or https URL —
-			                       string, or array of them for a picker grid.
-			                       URLs download once to /Library/Application
-			                       Support/IntuneOnboard/ as root:wheel 0644.
-			                       A URL that fails to download marks the item
-			                       FAILED (not skipped) — it was asked for and
-			                       didn't happen.
-			       sha256          64 hex characters, verified after download.
-			                       Only allowed with exactly ONE source — one
-			                       hash cannot vouch for several files. Omit to
-			                       skip verification; a mismatch fails the
-			                       item, so do not guess it.
-			       allowKeepExisting  Default false. Offer "keep the current
-			                       wallpaper" as an outcome.
-			     Applied per user with desktoppr; the applied file's hash goes
-			     into that user's state for validation, which is what makes
-			     re-running a skip instead of a re-apply. -->
+			<!-- ── wallpaper ──
+			       source             Required. Path or https URL, or an array.
+			       sha256             Verified after download. Single source only.
+			       allowKeepExisting  Default false. -->
 			<dict>
 				<key>id</key>
 				<string>wallpaper</string>
@@ -586,23 +424,11 @@ exit 0
 				<false/>
 			</dict>
 
-			<!-- ── kind: dock (automatic) ───────────────────────────────────
-			       dockStrategy           keep | add | replace. Default add.
-			                            String = performed as configured;
-			                            array = the user chooses (rendered as
-			                            radio buttons with a Dock preview).
-			                            "Keep the current Dock" is offered by
-			                            including keep in the array.
-			       items                Paths, or bundleid:<id>. Default [].
-			                            Missing apps are SKIPPED, not failed,
-			                            and reported as "X added, Y skipped" —
-			                            so listing an app not every Mac has is
-			                            safe. Add Privileges explicitly with
-			                            bundleid:corp.sap.privileges.
-			       waitForItemsTimeout  Seconds to wait for apps provisioning is
-			                            still installing. Default 0.
-			       restartDock          Default true. Restarts only this user's
-			                            Dock, once, after all edits. -->
+			<!-- ── dock ──
+			       dockStrategy         keep, add (default) or replace, or an array.
+			       items                Paths or bundleid:<id>. Missing apps are skipped.
+			       waitForItemsTimeout  Seconds to wait for listed apps. Default 0.
+			       restartDock          Default true. -->
 			<dict>
 				<key>id</key>
 				<string>dock</string>
@@ -631,25 +457,13 @@ exit 0
 				<false/>
 			</dict>
 
-			<!-- ── kind: defaultApps (ALWAYS interactive) ───────────────────
-			     At least one of browser/urlSchemes/types is required, or the
-			     config is rejected as an unreachable combination.
-			       browser         Bundle id(s), set via the http scheme.
-			                       String = confirm; array = the user picks one
-			                       (two side-by-side icons).
-			       urlSchemes      scheme → bundle id(s), same rule per scheme
-			                       (e.g. mailto below offers Outlook or Mail).
-			       types           UTI → bundle id(s), same rule.
-			       allowKeepExisting  Default false. Offer "keep the current
-			                       default" as an outcome.
-			       explanation     localized. Shown BEFORE anything is
-			                       triggered: macOS asks the user to confirm a
-			                       browser change, and from macOS 26.4 every
-			                       UTI change, so they need to know what the
-			                       prompts are.
-			     Current defaults are read first and anything already correct
-			     is skipped, to avoid needless prompts. Refusing a prompt shows
-			     the state and offers a retry. -->
+			<!-- ── defaultApps ──
+			     At least one of browser, urlSchemes or types is required.
+			       browser            Bundle id(s).
+			       urlSchemes         Scheme to bundle id(s).
+			       types              UTI to bundle id(s).
+			       allowKeepExisting  Default false.
+			       explanation        localized. Shown before macOS asks to confirm. -->
 			<dict>
 				<key>id</key>
 				<string>defaults</string>
@@ -684,17 +498,10 @@ exit 0
 				<false/>
 			</dict>
 
-			<!-- ── kind: open (ALWAYS interactive) ──────────────────────────
-			       target       REQUIRED. An app path, bundleid:<id>, or any
-			                    URL with a scheme — unlike help.url this one is
-			                    not restricted to https, so x-apple.system
-			                    preferences: deep links work.
+			<!-- ── open ──
+			       target       Required. App path, bundleid:<id> or URL.
 			       buttonTitle  localized.
-			       completion   "manual" (default — the user ticks it off) or
-			                    "validatePath", which requires validatePath on
-			                    the item. The two are checked together: asking
-			                    for validatePath completion without a path to
-			                    validate is a configuration error. -->
+			       completion   "manual" (default) or "validatePath". -->
 			<dict>
 				<key>id</key>
 				<string>register</string>
@@ -725,8 +532,7 @@ exit 0
 				<string>x-apple.systempreferences:com.apple.preferences.password</string>
 				<key>buttonTitle</key>
 				<string>Open System Settings</string>
-				<!-- Ticked off automatically once this path appears, instead of
-				     on the user's word. -->
+				<!-- Completes when validatePath exists. -->
 				<key>completion</key>
 				<string>validatePath</string>
 				<key>validatePath</key>
@@ -735,12 +541,9 @@ exit 0
 				<false/>
 			</dict>
 
-			<!-- ── kind: demoteUser (automatic, run by the daemon) ──────────
-			       exclude  Usernames never demoted. Default [] — there is NO
-			                shipped default, so put your hidden admin here or
-			                you will demote the only administrator.
-			     enabled=false below because deploying this reference file
-			     should not demote your test account. -->
+			<!-- ── demoteUser ──
+			       exclude  Accounts never demoted. Include your admin account.
+			     Disabled here so a test deployment does not demote anyone. -->
 			<dict>
 				<key>id</key>
 				<string>demote</string>

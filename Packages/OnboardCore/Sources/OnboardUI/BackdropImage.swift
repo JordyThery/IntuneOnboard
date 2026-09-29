@@ -2,14 +2,7 @@ import AppKit
 import OnboardCore
 import SwiftUI
 
-/// The focus backdrop's fill image. Any icon source works, so an admin can
-/// point `onboarding.background` at an https URL or a file on disk.
-///
-/// Scaled to fill and clipped: an organization's artwork shouldn't be
-/// letterboxed, and the backdrop has to cover the whole screen regardless of
-/// the image's aspect ratio.
-///
-/// Public because the app's focus backdrop is the consumer.
+/// The `focus` backdrop image, from any icon source, scaled to fill the screen.
 public struct BackdropImage: View {
     let spec: IconSpec
 
@@ -27,8 +20,7 @@ public struct BackdropImage: View {
         case .named(let name):
             fill(NSImage(named: name))
         case .symbol, .bundleID:
-            // Neither makes sense stretched across a screen; the backdrop
-            // keeps the window background colour instead.
+            // Not used for backdrops; the window background shows instead.
             Color.clear
         }
     }

@@ -1,8 +1,8 @@
 import Foundation
 import IOKit.pwr_mgt
 
-/// Keeps the Mac awake while provisioning runs (replaces the script's caffeinate).
-/// Released on deinit or explicit release().
+/// Prevents idle sleep while provisioning runs. Released by `release()` or
+/// on deinit.
 public final class PowerAssertion: @unchecked Sendable {
     private var assertionID: IOPMAssertionID = 0
     private var active = false

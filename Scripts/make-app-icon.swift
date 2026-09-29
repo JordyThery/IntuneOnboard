@@ -1,16 +1,11 @@
-// make-app-icon.swift — turn a flat PNG of the app icon into a macOS icon set.
+// make-app-icon.swift — create the macOS icon set from a flat PNG.
 //
 //   xcrun swift Scripts/make-app-icon.swift <source.png> <AppIcon.appiconset>
 //
-// The artwork arrives as a rounded square drawn on an opaque white background.
-// Shipping that as-is puts white corners in the Dock, so this:
-//   1. flood-fills the white background from the border (only white *connected*
-//      to the edge goes, so the white cloud and tick inside survive),
-//   2. measures the artwork's own corner radius from its top row,
-//   3. re-masks it with a rounded rect, which removes the anti-aliased white
-//      halo that thresholding alone leaves behind,
-//   4. draws it at 824/1024 of the canvas — Apple's macOS proportions since
-//      Big Sur — and writes every size the asset catalog asks for.
+// The source is a rounded square on a white background. This removes the
+// white background connected to the edges, masks the artwork to the macOS
+// icon shape, draws it at 824/1024 of the canvas, and writes every size the
+// asset catalog needs.
 
 import AppKit
 import CoreGraphics
@@ -42,7 +37,7 @@ guard let context = CGContext(
 }
 context.draw(source, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-// MARK: - 1. Flood-fill the white background inwards from the border
+// MARK: - 1. Remove the background connected to the edges
 
 func isWhite(_ index: Int) -> Bool {
     pixels[index] > 244 && pixels[index + 1] > 244 && pixels[index + 2] > 244
@@ -67,7 +62,7 @@ while let point = queue.popLast() {
     if y < height - 1 { queue.append(point + width) }
 }
 
-// MARK: - 2. The artwork's bounding box and corner radius
+// MARK: - 2. Artwork bounds and corner radius
 
 var minX = width, minY = height, maxX = -1, maxY = -1
 for y in 0..<height {
@@ -82,11 +77,10 @@ guard maxX > minX else {
 }
 let artwork = CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
 
-// At the artwork's topmost row the flat edge runs from minX+radius to
-// maxX-radius, so the first opaque pixel in that row gives the radius.
+// On the top row, the flat edge starts at minX + radius.
 var radius = 0
 var scanRow = minY
-// A hair below the very top, where anti-aliasing has settled.
+// Slightly below the top edge, clear of anti-aliasing.
 scanRow = min(minY + 2, height - 1)
 for x in minX...maxX where !isBackground[scanRow * width + x] {
     radius = x - minX
@@ -98,26 +92,20 @@ print(String(
     artwork.width, artwork.height, artwork.minX, artwork.minY, radius, radiusFraction * 100
 ))
 
-// MARK: - 3. Mask the artwork with its own rounded rect
+// MARK: - 3. Mask to a rounded rectangle
 
-// Apple's shape is a squircle; a circular-corner rounded rect at the measured
-// radius is within a pixel or two at icon sizes, and masking is safe in both
-// directions — anything outside the mask (including halo) simply goes.
+// A rounded rectangle approximates Apple's shape closely at icon sizes.
 let cropped = CGRect(x: 0, y: 0, width: artwork.width, height: artwork.height)
 guard let opaque = context.makeImage()?.cropping(to: artwork) else {
     fputs("could not crop\n", stderr)
     exit(1)
 }
 
-/// Apple's shape, not the artwork's: 185/824 on the macOS icon grid. The
-/// source art is a little rounder (measured above), and a Dock of squircles
-/// with one rounder tile looks off. Masking tighter than the art also trims
-/// the corners to the platform shape rather than leaving the art's own.
+/// The macOS icon corner radius: 185/824.
 let appleRadiusFraction = 185.0 / 824.0
 
-/// The art's outermost ring is anti-aliased against the white background it
-/// arrived on. Clipping alone leaves that as a pale halo, so the art is drawn
-/// very slightly larger than the clip and the ring falls outside it.
+/// Draw slightly larger than the mask, so the anti-aliased white edge is
+/// clipped away.
 let overfillFraction = 0.014
 
 func render(size: Int) -> CGImage? {
@@ -129,7 +117,7 @@ func render(size: Int) -> CGImage? {
     canvas.interpolationQuality = .high
     canvas.clear(CGRect(x: 0, y: 0, width: size, height: size))
 
-    // 824/1024 of the canvas, centred: the macOS app icon grid.
+    // 824/1024 of the canvas, centred.
     let inset = (Double(size) * (1.0 - 824.0 / 1024.0)) / 2.0
     let target = CGRect(x: inset, y: inset, width: Double(size) - inset * 2, height: Double(size) - inset * 2)
 
@@ -142,7 +130,7 @@ func render(size: Int) -> CGImage? {
     return canvas.makeImage()
 }
 
-// MARK: - 4. Write every size the catalog asks for
+// MARK: - 4. Write every size
 
 func write(_ image: CGImage, to url: URL) throws {
     let bitmap = NSBitmapImageRep(cgImage: image)
@@ -180,9 +168,8 @@ for entry in entries {
     print("  wrote \(entry.filename) (\(entry.pixels)px)")
 }
 
-// A 1024 master for eyeballing the result. Written next to the source art
-// rather than inside the asset catalog, where a file belonging to no image set
-// makes Xcode complain about unassigned children.
+// A 1024 preview, written next to the source rather than into the asset
+// catalog.
 if let master = render(size: 1024) {
     try write(master, to: sourceURL.deletingLastPathComponent().appending(path: "app-icon-1024.png"))
 }

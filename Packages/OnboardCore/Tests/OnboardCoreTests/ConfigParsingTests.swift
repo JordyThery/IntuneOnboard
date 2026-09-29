@@ -4,7 +4,7 @@ import Testing
 @testable import OnboardCore
 
 @Suite struct ConfigParsingTests {
-    /// Mirrors the §10 example configuration.
+    /// A complete example configuration.
     static func exampleRoot() -> [String: Any] {
         [
             "organization": [
@@ -100,9 +100,7 @@ import Testing
         #expect(onboarding[1].mode == .automatic)
     }
 
-    /// A key nobody reads is silently inert — a misspelling behaves exactly
-    /// like the key never being set, and no one is told. On an otherwise
-    /// clean parse, every unread key is a hard error naming its exact path.
+    /// On an otherwise valid parse, every unread key is an error with its path.
     @Test func unreadKeysAreErrorsOnACleanParse() throws {
         var root = Self.exampleRoot()
         root["allowContinueOnErorr"] = true // root-level typo
@@ -119,9 +117,7 @@ import Testing
         #expect(errors.contains { $0.path == "config.onboarding.items[1].restartDok" && $0.kind == .unknownKey })
     }
 
-    /// Apple's profile-metadata namespace is exempt at the root: the MDM
-    /// transport may leave a PayloadUUID behind in managed preferences, and
-    /// no admin wrote it. Nested, Payload* is a typo like any other.
+    /// Root-level `Payload*` keys are exempt; nested ones are not.
     @Test func payloadMetadataAtTheRootIsTolerated() throws {
         var root = Self.exampleRoot()
         root["PayloadType"] = "be.jordythery.intuneonboard"
@@ -138,9 +134,7 @@ import Testing
         #expect(nestedErrors.contains { $0.path == "config.organization.PayloadStray" && $0.kind == .unknownKey })
     }
 
-    /// The audit stays silent when the parse already failed: a broken item
-    /// legitimately leaves its keys unread, and unknown-key noise on top
-    /// would bury the error that actually needs fixing.
+    /// Unknown keys are not reported when parsing already failed.
     @Test func unreadKeysStayQuietWhenTheParseAlreadyFailed() throws {
         var root = Self.exampleRoot()
         root["allowContinueOnErorr"] = true
@@ -155,8 +149,7 @@ import Testing
         #expect(!errors.contains { $0.kind == .unknownKey }, "\(errors)")
     }
 
-    /// The onboarding's shape rule: scalar means confirm, array means choose.
-    /// A scalar parses as a one-element list so the UI branches on count.
+    /// A single value parses as a one-element list.
     @Test func scalarConfirmsArrayChooses() throws {
         var root = Self.exampleRoot()
         root["onboarding"] = [
@@ -220,7 +213,7 @@ import Testing
         #expect(errors.contains { $0.path.contains("dockStrategy") })
     }
 
-    /// One hash cannot vouch for several files.
+    /// `sha256` requires a single source.
     @Test func sha256WithSeveralWallpaperSourcesIsRejected() {
         let items = [OnboardingItem(
             id: "w",
@@ -235,7 +228,7 @@ import Testing
         #expect(errors.contains { $0.kind == .unreachableCombination("sha256 requires exactly one wallpaper source") })
     }
 
-    /// The onboarding's only post-run hook: Done opens this.
+    /// `launchOnCompletion`.
     @Test func launchOnCompletionParsesEveryTargetForm() throws {
         for (raw, expected) in [
             ("bundleid:com.microsoft.CompanyPortalMac", OnboardingItem.OpenTarget.bundleID("com.microsoft.CompanyPortalMac")),
@@ -251,7 +244,7 @@ import Testing
             #expect(configuration?.onboarding?.launchOnCompletion == expected)
         }
 
-        // Garbage is a config error, same rule as the open kind's target.
+        // Invalid values are configuration errors.
         var root = Self.exampleRoot()
         var onboarding = root["onboarding"] as! [String: Any]
         onboarding["launchOnCompletion"] = "not a target"
@@ -261,7 +254,7 @@ import Testing
         #expect(errors.contains { $0.path.contains("launchOnCompletion") })
     }
 
-    /// The dry-run key, defaulting off.
+    /// `dryRun` defaults to false.
     @Test func dryRunKeyParsesAndDefaultsOff() throws {
         let (defaulted, _) = ConfigParser.parse(Self.exampleRoot())
         #expect(defaulted?.dryRun == false)
@@ -273,7 +266,7 @@ import Testing
         #expect(configuration?.dryRun == true)
     }
 
-    /// The onboarding window keys, defaults included.
+    /// Onboarding window keys and their defaults.
     @Test func onboardingWindowKeysParseWithTheirDefaults() throws {
         let (defaulted, _) = ConfigParser.parse(Self.exampleRoot())
         #expect(defaulted?.onboarding?.hideOtherApps == true)
@@ -299,8 +292,7 @@ import Testing
         #expect(configuration?.onboarding?.blur == true)
     }
 
-    /// `left`/`right` are real reference values we don't implement; silently
-    /// centring a profile that asked for them would be a lie.
+    /// Unsupported `windowPosition` values are errors.
     @Test func unsupportedWindowPositionsAreConfigErrors() throws {
         for raw in ["left", "right", "focussed"] {
             var root = Self.exampleRoot()
@@ -313,8 +305,7 @@ import Testing
         }
     }
 
-    /// A template typo must fail the profile at parse time — the alternative
-    /// is a fleet named wrong.
+    /// Invalid templates are rejected when parsing.
     @Test func deviceNameTemplateParsesAndRejectsTypos() throws {
         var root = Self.exampleRoot()
         var provisioning = root["provisioning"] as! [String: Any]
@@ -331,9 +322,7 @@ import Testing
         #expect(typoErrors.contains { $0.path.contains("deviceNameTemplate") })
     }
 
-    /// A message step is a title and a message, nothing else. The old media
-    /// keys are gone, so a profile still carrying them fails the unknown-key
-    /// audit instead of silently losing its hero image.
+    /// Removed message keys are reported as unknown.
     @Test func messageStepParsesAndRejectsTheRetiredMediaKeys() throws {
         var root = Self.exampleRoot()
         root["onboarding"] = [
@@ -440,7 +429,7 @@ import Testing
         #expect(named.organization?.logo == .named("Logo"))
     }
 
-    /// The `name:` icon source resolves NSImage named images.
+    /// `name:` icons resolve named images.
     @Test func namedIconsParse() {
         #expect(IconSpec(configString: "name:NSComputer") == .named("NSComputer"))
         #expect(IconSpec(configString: "name:") == nil)
@@ -462,7 +451,7 @@ import Testing
         #expect(!help.isEmpty)
     }
 
-    /// No help keys means no question mark button at all.
+    /// No help keys means no help button.
     @Test func absentHelpIsNil() throws {
         #expect(try parse(["name": "Contoso"]).organization?.help == nil)
     }
@@ -482,8 +471,7 @@ import Testing
     }
 }
 
-/// The QR generator lives in OnboardUI, which the test target doesn't link;
-/// this mirrors it so the CoreImage filter itself stays covered.
+/// Mirrors OnboardUI's QR generator, which this test target does not link.
 enum QRCodeTestHook {
     static func image(for url: URL, side: CGFloat) -> CGImage? {
         guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }

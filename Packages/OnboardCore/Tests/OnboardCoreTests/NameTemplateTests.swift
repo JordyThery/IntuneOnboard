@@ -23,9 +23,9 @@ import Testing
     @Test func modifiersTakeFirstLastAndCenter() throws {
         #expect(try render("%serial:4%") == "C304")
         #expect(try render("%serial:-4%") == "C4KM")
-        // 10 chars, center 6: drop 2 each side.
+        // 10 characters, middle 6: drop 2 from each side.
         #expect(try render("%serial:=6%") == "04JQC4")
-        // Odd surplus comes off the end (start index rounds down).
+        // An odd surplus is taken from the end.
         #expect(try render("%serial:=6%", serial: "ABCDEFGHIJK") == "CDEFGH")
         // A modifier longer than the value keeps the whole value.
         #expect(try render("%serial:99%") == "C304JQC4KM")
@@ -59,13 +59,12 @@ import Testing
     }
 
     @Test func localHostNameIsBonjourSafe() {
-        // The apostrophe drops rather than hyphenates — the same shape macOS
-        // itself produces for "Jordy's MacBook Air".
+        // Apostrophes are dropped, as macOS does.
         #expect(NameTemplate.localHostName(from: "Jordy's MacBook Air") == "Jordys-MacBook-Air")
         #expect(NameTemplate.localHostName(from: "L9P_C304 JQC4KM") == "L9P-C304-JQC4KM")
         #expect(NameTemplate.localHostName(from: "--weird--") == "weird")
         #expect(NameTemplate.localHostName(from: "···") == nil)
-        // Truncation at 63 must not leave a trailing hyphen behind.
+        // Truncating at 63 leaves no trailing hyphen.
         let long = String(repeating: "a", count: 62) + "-bcd"
         #expect(NameTemplate.localHostName(from: long) == String(repeating: "a", count: 62))
     }

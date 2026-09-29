@@ -1,19 +1,14 @@
 import Foundation
 
-/// Device-wide provisioning state, persisted by the daemon.
+/// Provisioning state for the Mac, saved by the daemon.
 public struct DeviceState: Codable, Equatable, Sendable {
     public var schemaVersion: Int
     public var items: [String: ItemRecord]
-    /// The device completion marker: set once, never unset.
+    /// The completion marker; never cleared.
     public var completedAt: Date?
     public var lastRunAt: Date?
-    /// Consecutive preflight failures, reset the moment preflight passes.
-    ///
-    /// Capped like an item's attempts, and for the same reason: launchd
-    /// re-spawns the daemon every few seconds while a card is polling, and a
-    /// preflight that cannot pass re-ran its network checks about six times a
-    /// minute, indefinitely. Unlike an item there are no records to judge —
-    /// nothing ran — so the count has to be kept separately.
+    /// Consecutive preflight failures; reset when preflight passes. Limited
+    /// like item attempts.
     public var preflightFailures: Int
 
     public init(
@@ -30,10 +25,8 @@ public struct DeviceState: Codable, Equatable, Sendable {
         self.preflightFailures = preflightFailures
     }
 
-    /// Hand-written for the same reason `ItemRecord`'s and `UserState`'s are:
-    /// synthesized `Decodable` demands every key, and a device.json written
-    /// before this field existed has none. Failing to decode it would lose
-    /// the completion marker and re-provision a finished Mac.
+    /// Tolerates keys missing from older files, so the completion marker
+    /// is never lost.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
@@ -44,21 +37,15 @@ public struct DeviceState: Codable, Equatable, Sendable {
     }
 }
 
-/// Per-user onboarding state.
+/// Onboarding state for one user.
 public struct UserState: Codable, Equatable, Sendable {
     public var schemaVersion: Int
     public var items: [String: ItemRecord]
     public var completedAt: Date?
-    /// SHA-256 of the applied wallpaper file, for validation.
+    /// SHA-256 of the applied wallpaper.
     public var appliedWallpaperSHA256: String?
-    /// The provisioning run this user has already been shown and waved past,
-    /// identified by its start time (`DeviceState.lastRunAt`).
-    ///
-    /// A failed run is worth interrupting someone over once, not at every
-    /// login for the life of the Mac — and with the attempt cap a settled
-    /// failure never runs again, so the timestamp never moves and the card
-    /// stays gone. It comes back only when a *newer* run has failed, which
-    /// is the case where there is genuinely something new to say.
+    /// Start time (`DeviceState.lastRunAt`) of the failed provisioning run
+    /// this user dismissed. The failure is shown again only for a later run.
     public var dismissedProvisioningRunAt: Date?
 
     public init(
@@ -75,10 +62,7 @@ public struct UserState: Codable, Equatable, Sendable {
         self.dismissedProvisioningRunAt = dismissedProvisioningRunAt
     }
 
-    /// Hand-written for the same reason `ItemRecord`'s is: synthesized
-    /// `Decodable` demands every key, and a user.json written before this
-    /// field existed has none. Failing to decode it would lose the user's
-    /// onboarding progress and start them over.
+    /// Tolerates keys missing from older files.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
@@ -89,17 +73,15 @@ public struct UserState: Codable, Equatable, Sendable {
     }
 }
 
-/// Reads and writes state files. Layout (flattened per approved decision #6):
+/// Reads and writes state files atomically.
 ///
 ///     /Library/Application Support/IntuneOnboard/
 ///         state/device.json
-///         state/user-<name>.json     (owned by the daemon, root)
-///         progress.json              (root-owned, world-readable, M2)
+///         state/user-<name>.json
+///         progress.json              (world-readable)
 ///         cache/
 ///     ~/Library/Application Support/IntuneOnboard/
-///         state/user.json            (written by the agent, as the user)
-///
-/// Writes are atomic (temp file + rename).
+///         state/user.json
 public struct StateStore: Sendable {
     public let rootDirectory: URL
 
@@ -114,12 +96,8 @@ public struct StateStore: Sendable {
         return StateStore(rootDirectory: base.appending(path: "IntuneOnboard"))
     }
 
-    /// A named user's store, by home directory rather than by "current user".
-    ///
-    /// Necessary because the reporting path runs as **root**: an Intune custom
-    /// attribute is a root script, and `forCurrentUser()` would faithfully
-    /// report on root's own empty state instead of the person sitting at the
-    /// Mac. nil when the account has no home directory.
+    /// The store in a named user's home directory, for callers running as
+    /// root. nil when the account has no home directory.
     public static func forUser(named name: String) -> StateStore? {
         guard let home = NSHomeDirectoryForUser(name) else { return nil }
         return StateStore(
@@ -175,14 +153,9 @@ public struct StateStore: Sendable {
         do {
             return try decoder.decode(type, from: data)
         } catch {
-            // A file that exists but will not decode is not the same as no
-            // file — for device.json the difference is the completion marker,
-            // and treating "corrupt" as "blank" silently re-provisions a
-            // finished Mac. Every caller reaches this through `try?`, so the
-            // consequence is decided here: keep the evidence under a name the
-            // next load will not read, say so loudly, and only then let the
-            // caller start blank. (Writes are atomic and the files root-only,
-            // so arriving here means tampering or something genuinely broken.)
+            // Move the unreadable file aside and log it, rather than letting
+            // callers treat it as absent: for device.json that would discard
+            // the completion marker.
             let quarantined = url.deletingLastPathComponent()
                 .appending(path: url.lastPathComponent + ".corrupt")
             try? FileManager.default.removeItem(at: quarantined)

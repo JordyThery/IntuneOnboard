@@ -2,29 +2,25 @@ import Foundation
 import OnboardCore
 import Observation
 
-/// Drives the onboarding cards: owns the engine, keeps the derived step
-/// list fresh, and models the progression — every step a card, one active,
-/// and a single Continue that advances once the active step is satisfied.
+/// Drives the onboarding view: one step is active, and Continue advances once
+/// it is satisfied.
 @MainActor
 @Observable
 public final class OnboardingViewModel {
     public private(set) var steps: [StepState] = []
     public private(set) var selectedID: String?
-    /// True while an action runs, so the detail pane shows progress and the
-    /// buttons don't double-fire.
+    /// True while an action runs.
     public private(set) var isWorking = false
 
-    /// Branding for the sidebar header.
+    /// Branding.
     public let title: String
     public let message: String?
     public let accentHex: String?
-    /// The organization's logo — the same artwork as the provisioning header —
-    /// shown above the title; nil falls back to the app icon.
+    /// Shown above the title; nil shows the app icon.
     public let headerLogo: IconSpec?
-    /// Opened when the user presses Done (the only post-run hook).
+    /// Opened when the user presses Done.
     public let launchOnCompletion: OnboardingItem.OpenTarget?
-    /// The profile's DEBUG key: everything simulated, badge shown, and Done
-    /// opens nothing.
+    /// `dryRun`: actions are simulated and Done opens nothing.
     public let isDryRun: Bool
 
     private let engine: OnboardingEngine
@@ -54,20 +50,18 @@ public final class OnboardingViewModel {
         steps.first { $0.id == selectedID }
     }
 
-    /// The sidebar's queue: still to do, in config order.
+    /// Steps still to do, in configuration order.
     public var suggested: [StepState] {
         steps.filter { $0.status != .completed }
     }
 
-    /// Done, out of the queue but still visible in place — a completed
-    /// card collapses rather than disappears.
+    /// Completed steps, shown collapsed.
     public var completed: [StepState] {
         steps.filter { $0.status == .completed }
     }
 
-    /// Continue is enabled when the selected step is satisfied (or was
-    /// deliberately left: skipped counts). A failed step does not block — the
-    /// user can move on and come back, exactly because the queue keeps it.
+    /// Continue is enabled when the step is done or skipped. A failed step
+    /// can be returned to later.
     public var canContinue: Bool {
         guard let selected else { return false }
         return selected.status == .completed || selected.status == .canContinue
@@ -80,9 +74,8 @@ public final class OnboardingViewModel {
 
     // MARK: - Lifecycle
 
-    /// Initial derivation, then a slow re-derivation loop: validatePath steps
-    /// complete when another process creates the file, and a setting changed
-    /// behind our back should be reflected without relaunching.
+    /// Evaluates the steps, then re-evaluates periodically so external
+    /// changes (such as a validatePath file appearing) are picked up.
     public func start(pollInterval: Duration = .seconds(3)) {
         guard refreshTask == nil else { return }
         refreshTask = Task { [weak self] in
@@ -100,8 +93,8 @@ public final class OnboardingViewModel {
 
     // MARK: - Intents
 
-    /// Runs the selected step. `choice` carries the user's pick for
-    /// array-shaped steps; `nil` confirms a scalar one.
+    /// Performs the selected step. `choice` is the user's selection, or nil
+    /// to confirm a single value.
     public func perform(choice: StepChoice? = nil) async {
         guard let selectedID, !isWorking else { return }
         isWorking = true
@@ -109,19 +102,18 @@ public final class OnboardingViewModel {
         isWorking = false
     }
 
-    /// The user's current Dock, for the dock step's live preview.
+    /// The current Dock, for the preview.
     public func currentDockItems() async -> [String] {
         await engine.currentDockItems()
     }
 
-    /// Manual completion for `open` steps.
+    /// Marks a `manual` `open` step as done.
     public func markDone() async {
         guard let selectedID, !isWorking else { return }
         steps = await engine.markDone(itemID: selectedID)
     }
 
-    /// The user pressed Continue: move to the next thing worth doing. Stays
-    /// put when the queue is empty — the footer switches to Done.
+    /// Moves to the next step to do. When none remain, the footer shows Done.
     public func advance() {
         guard let next = suggested.first(where: { $0.id != selectedID }) ?? suggested.first else {
             return
@@ -134,14 +126,11 @@ public final class OnboardingViewModel {
     }
 
     private func refresh() async {
-        // Not while an action runs: a re-derivation mid-action would flap the
-        // selected step's UI between states.
+        // Not while an action runs.
         guard !isWorking else { return }
         steps = await engine.refresh()
-        // Selection moves only by the user's hand (select) or by Continue
-        // (advance) — a background refresh never yanks it, however often
-        // `start()` gets called. Only an empty or vanished selection is
-        // (re)seated, on the first thing worth doing.
+        // Selection changes only when the user selects or continues; a
+        // refresh only fills an empty or removed selection.
         let selectionIsValid = selectedID.map { id in steps.contains { $0.id == id } } ?? false
         if !selectionIsValid {
             selectedID = suggested.first?.id ?? steps.first?.id

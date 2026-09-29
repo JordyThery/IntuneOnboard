@@ -2,23 +2,19 @@ import Foundation
 import IOKit
 import SystemConfiguration
 
-/// Device identity for the "About this Mac" popover. During Setup Assistant
-/// this is the only place anyone can look things up: there is no Finder, no
-/// System Settings and no signed-in user, so a technician reading a serial
-/// number off the screen — or checking the Mac is actually on the network —
-/// has nowhere else to go.
+/// Device details for "About this Mac" in the provisioning window.
 public struct DeviceInfo: Equatable, Sendable {
-    /// "MacBook Air (15-inch, M4, 2025)" when the device tree knows it.
+    /// e.g. "MacBook Air (15-inch, M4, 2025)", when available.
     public let marketingName: String?
     public let computerName: String
-    /// "Mac15,13"
+    /// e.g. "Mac15,13"
     public let modelIdentifier: String
-    /// "Apple M4"
+    /// e.g. "Apple M4"
     public let chip: String?
     public let memoryBytes: UInt64?
     public let storageBytes: Int64?
     public let serialNumber: String?
-    /// "macOS 27.0 (26A428)"
+    /// e.g. "macOS 27.0 (26A428)"
     public let osVersion: String
     public let isOnline: Bool?
 
@@ -46,7 +42,7 @@ public struct DeviceInfo: Equatable, Sendable {
 
     // MARK: - Formatted
 
-    /// Decimal GB, as the Mac's own About This Mac reports it.
+    /// Decimal GB, as macOS reports it.
     public var memory: String? {
         memoryBytes.map { $0.formatted(.byteCount(style: .memory)) }
     }
@@ -55,9 +51,8 @@ public struct DeviceInfo: Equatable, Sendable {
         storageBytes.map { $0.formatted(.byteCount(style: .file)) }
     }
 
-    /// One line for a log or a footer. Org naming conventions often bake the
-    /// serial into the computer name, and printing it twice just makes the
-    /// line harder to read out loud.
+    /// One line for logs. Omits the serial when the computer name already
+    /// contains it.
     public var summary: String {
         var parts = [computerName, modelIdentifier]
         if let serialNumber, !computerName.contains(serialNumber) {
@@ -83,8 +78,7 @@ public struct DeviceInfo: Equatable, Sendable {
         )
     }
 
-    /// The IOPlatformUUID — `%udid%` in `deviceNameTemplate`. Not a stored
-    /// field: nothing displays it, only the namer asks.
+    /// IOPlatformUUID, for `%udid%`.
     public static func platformUUID() -> String? {
         registryString(kIOPlatformUUIDKey)
     }
@@ -106,10 +100,8 @@ public struct DeviceInfo: Equatable, Sendable {
         return values?.volumeTotalCapacity.map(Int64.init)
     }
 
-    /// Reachability only — whether the stack thinks it can route somewhere.
-    /// Deliberately not a speed test: this runs while Installomator is pulling
-    /// gigabytes, and competing for that bandwidth to draw a number would be
-    /// a poor trade.
+    /// Whether a route is available. Not a speed test, to avoid competing
+    /// with downloads.
     private static func isNetworkReachable() -> Bool? {
         var address = sockaddr_in()
         address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -153,10 +145,8 @@ public struct DeviceInfo: Equatable, Sendable {
         return property(of: service, key: key)
     }
 
-    /// The marketing name ("MacBook Pro (14-inch, Nov 2023)") lives at
-    /// `IODeviceTree:/product`, *not* on IOPlatformExpertDevice — checked on
-    /// hardware, where the latter returns nothing. Values arrive as
-    /// null-terminated data rather than strings.
+    /// The product name is at `IODeviceTree:/product` (not on
+    /// IOPlatformExpertDevice), as null-terminated data.
     private static func deviceTreeString(path: String, key: String) -> String? {
         let entry = IORegistryEntryFromPath(kIOMainPortDefault, path)
         guard entry != 0 else { return nil }

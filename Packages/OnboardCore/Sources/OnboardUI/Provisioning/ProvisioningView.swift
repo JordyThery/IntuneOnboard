@@ -1,32 +1,17 @@
 import OnboardCore
 import SwiftUI
 
-/// Provisioning, the device provisioning screen: shown over Setup Assistant (or at
-/// the login window) while the root daemon works, and in `--demo provisioning`
-/// against a scripted run.
-///
-/// A plain vertical register: a header naming the Mac's setup and counting it,
-/// one row per item with its state on the right, and a footer carrying the
-/// progress bar and the things a technician actually needs — "About this Mac…"
-/// and the help button with its QR code. It reads as a system utility rather
-/// than a branded splash; the organization's logo is an identity mark in the
-/// header, not a billboard.
-///
-/// Two presentations, one layout. Over Setup Assistant the window is Setup
-/// Assistant's own panel rectangle, and a separate invisible window covers the
-/// screen so the kiosk still holds.
+/// The provisioning window, shown over Setup Assistant, at login, and in
+/// `--demo provisioning`: a header with a count, one row per item, and a
+/// footer with the progress bar, "About this Mac" and help.
 public struct ProvisioningView: View {
     public enum Presentation: Sendable {
-        /// Over Setup Assistant: the content fills a window sized to Setup
-        /// Assistant's panel.
+        /// Over Setup Assistant, filling a window sized to its panel.
         case kiosk
-        /// Ordinary window: the content fills it.
+        /// In a normal window.
         case window
 
-        /// The smallest the window may be. The kiosk has to be free to shrink
-        /// to whatever panel Setup Assistant is drawing — a minimum larger
-        /// than the panel would stop the window matching it, which is the one
-        /// thing that must not happen on hardware nobody has measured.
+        /// Minimum window size. Small, so the window can match any panel size.
         public var minimumSize: CGSize {
             switch self {
             case .kiosk: CGSize(width: 420, height: 320)
@@ -43,11 +28,9 @@ public struct ProvisioningView: View {
     @State private var showsAbout = false
     @State private var showsHelp = false
 
-    /// - Parameter alwaysAllowsDismiss: offer a way out of a failed run even
-    ///   when `allowContinueOnError` is false. Set when this card stands in
-    ///   front of onboarding at login: the person is there, the steps behind
-    ///   the card are theirs to do, and refusing them a button strands them
-    ///   with a window whose only action is Try again.
+    /// - Parameter alwaysAllowsDismiss: offer a way past a failed run even
+    ///   when `allowContinueOnError` is false. Used when this view is shown
+    ///   before onboarding.
     public init(
         model: ProvisioningViewModel,
         presentation: Presentation = .window,
@@ -77,12 +60,8 @@ public struct ProvisioningView: View {
     private var framed: some View {
         switch presentation {
         case .kiosk:
-            // The window *is* Setup Assistant's panel — `WindowPresenter` sets
-            // its frame from the real rectangle — so the content just fills it.
-            // There is deliberately no geometry here: positioning a card
-            // inside a screen-sized window meant guessing that window's
-            // offset from the screen, and every version of the guess was a
-            // few points out. Clicks elsewhere are `KioskBlocker`'s job.
+            // The window is sized to Setup Assistant's panel by
+            // WindowPresenter, so the content fills it.
             content
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .ignoresSafeArea()
@@ -105,7 +84,7 @@ public struct ProvisioningView: View {
 
     // MARK: - Header
 
-    /// Title and count on the left, the organization's identity on the right.
+    /// Title and count on the left, the organization on the right.
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
@@ -139,7 +118,7 @@ public struct ProvisioningView: View {
         }
     }
 
-    /// The count while there are items; before that, what is being waited on.
+    /// The item count, or what is being waited for.
     @ViewBuilder
     private var subline: some View {
         if display.totalCount > 0 {
@@ -164,8 +143,7 @@ public struct ProvisioningView: View {
         }
     }
 
-    /// The organization's mark, restrained: a small logo and the name. A
-    /// symbol logo takes the accent instead of white-on-white.
+    /// A small logo and the name. A symbol logo uses the accent colour.
     @ViewBuilder
     private var identity: some View {
         HStack(spacing: 8) {
@@ -183,9 +161,8 @@ public struct ProvisioningView: View {
 
     // MARK: - Rows
 
-    /// One row per item, the working one kept in view. Before the item list
-    /// exists (connecting, waiting for the profile, preflight) the area holds
-    /// a spinner and the activity line instead of sitting empty.
+    /// One row per item, keeping the running item in view. Before items
+    /// exist, a spinner and the current activity.
     @ViewBuilder
     private var listArea: some View {
         if display.rows.isEmpty {
@@ -265,10 +242,8 @@ public struct ProvisioningView: View {
         .accessibilityValue(Text(ProvisioningStrings.label(for: row.status)))
     }
 
-    /// A script's own `status:` line wins over the localized label while the
-    /// item runs — it is the more specific truth. Once the item is settled the
-    /// outcome is the truth: hardware showed "Installing Rosetta 2" sitting
-    /// next to a green check because the script's last line outlived the run.
+    /// A script's `status:` text while the item runs; the outcome once it
+    /// has finished.
     @ViewBuilder
     private func statusText(for row: ProvisioningDisplay.Row) -> some View {
         if row.outcome == .running, let text = row.statusText, !text.isEmpty {
@@ -309,10 +284,8 @@ public struct ProvisioningView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
 
-            // Over Setup Assistant a failed run has no buttons — there is
-            // nobody to press them — so without this the screen states a
-            // problem and offers nothing at all. Whoever is holding the Mac
-            // needs to know the next move is a phone call.
+            // Over Setup Assistant there are no buttons, so tell the user
+            // whom to contact.
             if display.failedCount > 0, display.phase.isFinished {
                 Text(display.header.supportText.map { ProvisioningStrings.contactSupport(details: $0) }
                     ?? ProvisioningStrings.contactSupportGeneric)
@@ -355,9 +328,7 @@ public struct ProvisioningView: View {
         }
     }
 
-    /// The keepers: the device details and a scannable route to the service
-    /// desk. A technician standing at a Mac during Setup Assistant has no
-    /// Terminal and no browser, so neither can be designed away.
+    /// Device details and the help button.
     private var furniture: some View {
         HStack(alignment: .firstTextBaseline) {
             Button {
@@ -404,10 +375,7 @@ public struct ProvisioningView: View {
                 .disabled(model.isRetrying)
             }
 
-            // A failed run is only dismissable when the profile says so; a
-            // clean one always is. When it isn't, the button is left out
-            // rather than shown dead — there is nothing to do here but read
-            // the failure and call the service desk.
+            // Omitted, not disabled, when a failed run cannot be dismissed.
             if let onDismiss, canDismiss {
                 Button(display.failedCount > 0 ? ProvisioningStrings.continueAnyway : ProvisioningStrings.done) {
                     onDismiss()
@@ -422,10 +390,8 @@ public struct ProvisioningView: View {
         display.failedCount == 0 || display.allowContinueOnError || alwaysAllowsDismiss
     }
 
-    /// Never in the kiosk. Over Setup Assistant there is nobody to decide to
-    /// retry and nothing gained by waiting: enrollment should carry on, and
-    /// the failure is in the log and the Intune attribute. Retrying is for a
-    /// signed-in user (or an admin over XPC).
+    /// Not in kiosk mode, where no one is at the keyboard; the failure is
+    /// reported in the log and the custom attribute.
     private var offersRetry: Bool {
         presentation != .kiosk && display.canRetry
     }
@@ -433,8 +399,7 @@ public struct ProvisioningView: View {
 
 // MARK: - Previews
 
-/// Fixed snapshot, so previews don't animate and each shows exactly the state
-/// it claims to.
+/// A fixed snapshot, so previews do not animate.
 private struct FixedProgressSource: ProgressProviding {
     let snapshot: ProgressSnapshot
     func currentSnapshot() async -> ProgressSnapshot? { snapshot }
@@ -462,8 +427,7 @@ private func previewModel(elapsed: Double, retried: Bool = false) -> Provisionin
     return model
 }
 
-/// Stands in for the Setup Assistant backdrop so the kiosk previews show what
-/// the window actually sits on.
+/// A stand-in for Setup Assistant's background, for kiosk previews.
 private struct BackdropPreview<Content: View>: View {
     @ViewBuilder var content: Content
 

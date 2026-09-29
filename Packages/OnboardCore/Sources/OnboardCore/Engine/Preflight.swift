@@ -25,11 +25,11 @@ public enum PreflightError: Error, Equatable, Sendable, CustomStringConvertible 
     }
 }
 
-/// Preflight checks before provisioning. All dependencies injectable for tests.
+/// Checks run before provisioning. Dependencies are injectable for tests.
 public struct Preflight: Sendable {
     public var uid: @Sendable () -> uid_t
     public var processRunner: any ProcessRunning
-    /// Returns true when the URL answered (any HTTP status counts as reachable).
+    /// True when the URL responds with any HTTP status.
     public var probe: @Sendable (URL, Duration) async -> Bool
 
     public init(
@@ -64,9 +64,7 @@ public struct Preflight: Sendable {
         }
     }
 
-    /// `profiles status -type enrollment` → "Enrolled via DEP: Yes".
-    /// Public because the daemon re-asks on a later spawn: an ineligible Mac
-    /// has to keep saying so, and the answer is cheaper than remembering it.
+    /// Parses `profiles status -type enrollment` for "Enrolled via DEP: Yes".
     public func isADEEnrolled() async -> Bool {
         guard let result = try? await processRunner.run(
             executable: "/usr/bin/profiles",

@@ -1,19 +1,12 @@
 import Foundation
 
-/// Onboarding under the profile's `DEBUG` key: the configured onboarding runs
-/// against the real Mac's *current* state, but every mutation lands in an
-/// in-memory overlay instead of on the system. Derivation reads through the
-/// overlay, so steps complete and un-complete exactly as they would for real
-/// — the admin reviews their own profile against real installed apps, the
-/// real Dock and the real admin group — while the Mac never changes.
-///
-/// `DemoOnboardingWorld` is the same idea over a fabricated Mac; this one's
-/// base is the live probes.
+/// Onboarding for a `dryRun` profile: steps are evaluated against the Mac's
+/// real state, but changes are kept in an in-memory overlay and never applied.
 public final class DryRunOnboardingWorld: @unchecked Sendable {
     private let lock = NSLock()
     private let base: OnboardingProbes
 
-    // The overlay: what the dry-run actions "changed". Absent = ask the base.
+    // Values changed by the dry run; nil means use the real value.
     private var wallpaper: String?
     private var defaults: [String: String] = [:]
     private var demotedUsers: Set<String> = []
@@ -23,7 +16,7 @@ public final class DryRunOnboardingWorld: @unchecked Sendable {
         self.base = base
     }
 
-    /// The base probes with the overlay in front.
+    /// The real probes, with the overlay taking precedence.
     public var probes: OnboardingProbes {
         OnboardingProbes(
             currentUserName: base.currentUserName,
@@ -53,9 +46,8 @@ public final class DryRunOnboardingWorld: @unchecked Sendable {
     fileprivate func touch(_ path: String) { lock.withLock { _ = touchedFiles.insert(path) } }
 }
 
-/// The real runner's decision logic — choice resolution, skip-missing rules,
-/// outcomes — with the world standing in for the Mac. No subprocess, no XPC,
-/// no app launches.
+/// The real actions' decision logic, applied to the overlay. Runs no
+/// processes, XPC calls or apps.
 public struct DryRunOnboardingActions: OnboardingActing {
     private let world: DryRunOnboardingWorld
     private let sleep: @Sendable (Duration) async -> Void
@@ -69,7 +61,7 @@ public struct DryRunOnboardingActions: OnboardingActing {
     }
 
     public func perform(_ item: OnboardingItem, choice: StepChoice?) async -> ItemRecord {
-        // Pace like work is happening, so the running state is reviewable.
+        // Brief pause, so the running state is visible.
         await sleep(.milliseconds(700))
 
         if case .keepCurrent = choice {
@@ -98,10 +90,10 @@ public struct DryRunOnboardingActions: OnboardingActing {
             if case .path = source, !probes.fileExists(destination) {
                 return ItemRecord(outcome: .skipped, status: .notNeeded, message: "wallpaper file not present")
             }
-            // A remote source's download is presumed to succeed.
+            // Downloads are assumed to succeed.
             world.touch(destination)
             world.setWallpaper(destination)
-            return ItemRecord(outcome: .success, status: .done, message: "DEBUG — simulated")
+            return ItemRecord(outcome: .success, status: .done, message: "dry run — simulated")
 
         case .dock(let spec):
             let action: OnboardingItem.DockStrategy
@@ -113,7 +105,7 @@ public struct DryRunOnboardingActions: OnboardingActing {
             if action == .keep {
                 return ItemRecord(outcome: .skipped, status: .notNeeded)
             }
-            // The same skip-missing count the real action reports.
+            // Same skipped count as the real action.
             var added = 0, skipped = 0
             for entry in spec.items {
                 if entry.hasPrefix("bundleid:") {
@@ -127,7 +119,7 @@ public struct DryRunOnboardingActions: OnboardingActing {
                 outcome: .success,
                 status: .done,
                 detail: ["added": added, "skipped": skipped],
-                message: "DEBUG — simulated"
+                message: "dry run — simulated"
             )
 
         case .defaultApps(let spec):
@@ -146,20 +138,20 @@ public struct DryRunOnboardingActions: OnboardingActing {
                 }
                 picks[target.key] = installed[0]
             }
-            // The simulation presumes the user accepts macOS's own prompt.
+            // Assumes the user accepts the macOS prompt.
             for (target, _) in actionable {
                 if let bundleID = picks[target.key] {
                     world.setDefault(target.key, to: bundleID)
                 }
             }
-            return ItemRecord(outcome: .success, status: .done, message: "DEBUG — simulated")
+            return ItemRecord(outcome: .success, status: .done, message: "dry run — simulated")
 
         case .open:
-            // Nothing launches. validatePath completes via the overlay.
+            // Opens nothing.
             if let path = item.validatePath {
                 world.touch(path)
             }
-            return ItemRecord(outcome: .success, status: .awaitingUser, message: "DEBUG — not opened")
+            return ItemRecord(outcome: .success, status: .awaitingUser, message: "dry run — not opened")
 
         case .demoteUser(let exclude):
             let user = probes.currentUserName()
@@ -170,7 +162,7 @@ public struct DryRunOnboardingActions: OnboardingActing {
                 return ItemRecord(outcome: .skipped, status: .notNeeded)
             }
             world.demote(user)
-            return ItemRecord(outcome: .success, status: .done, message: "DEBUG — simulated")
+            return ItemRecord(outcome: .success, status: .done, message: "dry run — simulated")
         }
     }
 }

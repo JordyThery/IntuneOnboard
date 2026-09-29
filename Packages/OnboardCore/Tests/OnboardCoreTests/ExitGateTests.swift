@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardCore
 
-/// The retry-vs-exit race, in miniature. On hardware this is: settle a Mac,
-/// press Try again, and see whether the daemon's exit kills the retry — here
-/// the same sequence runs in milliseconds against the extracted gate.
+/// Exit timing when a retry starts after the run has returned.
 @Suite struct ExitGateTests {
     private func makeGate(initial: Int32 = 30) -> ExitGate {
         ExitGate(
@@ -23,19 +21,17 @@ import Testing
         #expect(ContinuousClock.now - started >= .milliseconds(40), "the grace period must elapse")
     }
 
-    /// The bug this type exists for: work beginning inside the grace period
-    /// must hold the exit until it finishes — and the exit code is the
-    /// *work's* verdict, not the stale one from before it ran.
+    /// Work started during the grace period delays exit, and its exit code
+    /// replaces the earlier one.
     @Test func workInsideTheGraceHoldsTheExitAndReplacesTheVerdict() async throws {
         let gate = makeGate()
         await gate.record(exitCode: 30) // the settled failure
 
-        // The retry arrives just after run() returned, as it does over XPC.
+        // The retry starts just after run() returns.
         await gate.beginWork()
         async let settled = gate.settledExitCode()
 
-        // The engine pass outlives several grace periods — as a real one
-        // (installing things) always would.
+        // The work outlasts several grace periods.
         try await Task.sleep(for: .milliseconds(150))
         await gate.endWork(exitCode: 0) // the retry fixed it
 
@@ -52,7 +48,7 @@ import Testing
         try await Task.sleep(for: .milliseconds(60))
         await gate.endWork(exitCode: 30) // first retry also failed
 
-        // A second Try again lands inside the fresh grace period.
+        // A second retry starts during the new grace period.
         await gate.beginWork()
         try await Task.sleep(for: .milliseconds(60))
         await gate.endWork(exitCode: 0)
@@ -60,7 +56,7 @@ import Testing
         #expect(await settled == 0)
     }
 
-    /// Overlapping work: the gate holds until *all* of it is done.
+    /// Exit waits for all concurrent work.
     @Test func overlappingWorkAllCountsAgainstTheExit() async throws {
         let gate = makeGate()
         await gate.beginWork()
@@ -69,8 +65,7 @@ import Testing
 
         try await Task.sleep(for: .milliseconds(80))
         await gate.endWork(exitCode: 12)
-        // Still one in flight — the gate must not release yet, so the second
-        // verdict is the one that lands.
+        // One still running, so the later exit code applies.
         try await Task.sleep(for: .milliseconds(80))
         await gate.endWork(exitCode: 0)
 

@@ -1,20 +1,11 @@
 import Foundation
 
-/// Decides whether the daemon may put the kiosk UI back on screen.
+/// Whether the daemon may relaunch the provisioning window.
 ///
-/// Two independent brakes, because a kiosk that can strand a technician is
-/// worse than one a user can dismiss by accident:
-///
-/// 1. `suppress()` — an administrator used the escape hatch (⌃⌥⌘Q) and the
-///    app told us over XPC. Final for the rest of the run.
-/// 2. `limit` — a hard cap on relaunches. This one matters when XPC is
-///    *unavailable*, which is precisely the case where the hatch is needed
-///    most and the polite signal can't get through.
-///
-/// Lives here rather than in the daemon target so it can be tested.
+/// Relaunching stops after `suppress()` (⌃⌥⌘Q, reported over XPC) or after
+/// `limit` relaunches, which applies even if XPC is unavailable.
 public struct RelaunchPolicy: Sendable, Equatable {
-    /// Enough to survive an accidental force-quit or a crash loop, few enough
-    /// that someone holding the shortcut always wins.
+    /// Allows for a force-quit or crash, but not an endless loop.
     public static let defaultLimit = 3
 
     public let limit: Int
@@ -29,8 +20,7 @@ public struct RelaunchPolicy: Sendable, Equatable {
         !isSuppressed && relaunchCount < limit
     }
 
-    /// True once the cap is reached — worth logging loudly, since from here on
-    /// a vanished UI stays vanished while the engine keeps working.
+    /// True once the limit is reached.
     public var isExhausted: Bool {
         !isSuppressed && relaunchCount >= limit
     }

@@ -1,12 +1,9 @@
 import OnboardCore
 import SwiftUI
 
-/// Onboarding's fixed strings, kept in one place like `ProvisioningStrings`,
-/// and for the same reason: the translations live here and no view has to
-/// know about them.
+/// Onboarding's built-in strings.
 enum OnboardingStrings {
-    /// The product name, deliberately not localizable — a brand is not
-    /// translated. `onboarding.title` in the profile overrides it anyway.
+    /// Not localized. `onboarding.title` overrides it.
     static var defaultTitle: String { "Intune Onboard" }
 
     static var defaultMessage: String {
@@ -22,7 +19,7 @@ enum OnboardingStrings {
     static var completedSection: LocalizedStringResource {
         .module("Completed", comment: "Accessibility value on a finished step's card.")
     }
-    /// The header's counter: how far through the steps the user is.
+    /// Progress through the steps.
     static func doneCounter(completed: Int, total: Int) -> LocalizedStringResource {
         .module(
             "\(completed) of \(total) done",
@@ -51,8 +48,7 @@ enum OnboardingStrings {
         .module("Try again", comment: "Button that re-runs a step that failed.")
     }
 
-    /// One sentence, not a prefix plus a message: gluing two localized
-    /// fragments together assumes an English word order.
+    /// A single sentence, so translations control word order.
     static func failure(message: String) -> LocalizedStringResource {
         .module("This step didn't finish: \(message)", comment: "Shown under a failed step. The variable is the reason, which comes from the system and is not translated.")
     }
@@ -68,7 +64,7 @@ enum OnboardingStrings {
         }
     }
 
-    /// The dock outcome with its counts.
+    /// The Dock result with counts.
     static func dockOutcome(added: Int, skipped: Int) -> LocalizedStringResource {
         .module(
             "Done (\(added) added, \(skipped) skipped)",

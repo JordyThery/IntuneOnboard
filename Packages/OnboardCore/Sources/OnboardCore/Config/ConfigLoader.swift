@@ -1,15 +1,13 @@
 import Foundation
 
-/// Loads configuration from managed preferences only. User-level defaults are
-/// deliberately ignored: the config contains scripts that run as root, so a
-/// user-writable source would be a privilege escalation.
+/// Loads configuration from managed preferences only. User preferences are
+/// ignored because the configuration can run scripts as root.
 public enum ConfigLoader {
     public static let managedPreferencesPath =
         "/Library/Managed Preferences/\(ServiceIdentity.preferencesDomain).plist"
 
-    /// Loads and fully validates. `overridePath` is for DEBUG builds'
-    /// `--config` only and must be root-owned and not group/world-writable —
-    /// checked here regardless of build configuration, defense in depth.
+    /// Loads and validates. `overridePath` (`validate-config --path`) must be
+    /// owned by root and not writable by group or others.
     public static func load(overridePath: String? = nil) throws -> Configuration {
         let path: String
         if let overridePath {
@@ -44,7 +42,7 @@ public enum ConfigLoader {
         return try parseAndValidate(root)
     }
 
-    /// Shared by load() and tests: parse, then whole-tree validation.
+    /// Parses, then validates the whole tree.
     public static func parseAndValidate(
         _ root: [String: Any],
         fileChecks: ConfigValidator.FileChecks = .live

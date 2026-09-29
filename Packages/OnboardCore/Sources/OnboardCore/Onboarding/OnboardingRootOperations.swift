@@ -1,17 +1,14 @@
 import CryptoKit
 import Foundation
 
-/// The daemon's side of the two onboarding root operations. Everything is
-/// resolved from the daemon's own inputs — its config, its view of the console
-/// user — so the XPC caller supplies nothing but an item id and an index.
-///
-/// Returns `RootOperationReply` rather than throwing: the reply crosses XPC,
-/// and the error text is the part the user ends up reading.
+/// The daemon's implementation of the onboarding root operations. The item,
+/// URL and user are resolved from the daemon's own configuration and console
+/// user. Errors are returned in the reply, not thrown, so they cross XPC.
 public struct OnboardingRootOperations: Sendable {
     public var loadConfiguration: @Sendable () throws -> Configuration
     public var runner: any ProcessRunning
     public var consoleUserName: @Sendable () -> String?
-    /// Downloads to a temporary file and returns its URL (URLSession live).
+    /// Downloads to a temporary file and returns its URL.
     public var download: @Sendable (URL) async throws -> URL
     public var fileManager: FileManager { .default }
 
@@ -43,7 +40,7 @@ public struct OnboardingRootOperations: Sendable {
             return RootOperationReply(ok: false, message: "no such wallpaper source in the configuration")
         }
         guard case .remote(let url) = spec.sources[sourceIndex] else {
-            // A local path needs no download; answer with it.
+            // Local sources need no download.
             return RootOperationReply(ok: true, value: WallpaperLocation.destination(for: spec.sources[sourceIndex]).path)
         }
 
@@ -52,8 +49,7 @@ public struct OnboardingRootOperations: Sendable {
             let temporary = try await download(url)
             defer { try? fileManager.removeItem(at: temporary) }
 
-            // Config-pinned hash, verified before the file lands anywhere
-            // shared. Only a single-source item can carry one (validator).
+            // Verified before the file is moved into place.
             if let expected = spec.sha256 {
                 let actual = try Hashing.sha256(of: temporary)
                 guard actual == expected.lowercased() else {
@@ -66,7 +62,7 @@ public struct OnboardingRootOperations: Sendable {
                 try fileManager.removeItem(at: destination)
             }
             try fileManager.moveItem(at: temporary, to: destination)
-            // Readable by every user's onboarding, writable by nobody but root.
+            // Readable by all users, writable only by root.
             try fileManager.setAttributes([
                 .posixPermissions: 0o644,
                 .ownerAccountID: 0,
@@ -91,16 +87,13 @@ public struct OnboardingRootOperations: Sendable {
         guard let user = consoleUserName() else {
             return RootOperationReply(ok: false, message: "no console user")
         }
-        // The exclude list is enforced *here*, from the daemon's own config —
-        // not in the UI, whose process the user controls.
+        // Enforced here, not in the UI.
         guard !exclude.contains(user) else {
             return RootOperationReply(ok: true, value: "notNeeded", message: "\(user) is excluded")
         }
 
         do {
-            // Prefix, not contains: the output is "yes <user> is a member…" /
-            // "no <user> is NOT a member…", and a username containing "yes"
-            // (reyes) would satisfy a contains check on the negative line.
+            // Prefix match: "no reyes is NOT a member" contains "yes".
             let membership = try await dseditgroup(["-o", "checkmember", "-m", user, "admin"])
             guard membership.standardOutput.hasPrefix("yes") else {
                 return RootOperationReply(ok: true, value: "notNeeded")
@@ -133,6 +126,5 @@ public struct OnboardingRootOperations: Sendable {
     }
 }
 
-/// The XPC client satisfies the actions' root protocol directly — same
-/// signatures, same semantics.
+/// The XPC client implements the root operations protocol directly.
 extension OnboardServiceClient: OnboardingRootServicing {}

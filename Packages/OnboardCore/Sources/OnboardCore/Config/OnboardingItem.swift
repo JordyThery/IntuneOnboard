@@ -1,17 +1,16 @@
 import Foundation
 
-/// One step of onboarding, the per-user stage.
+/// One onboarding step.
 public struct OnboardingItem: Equatable, Sendable {
     public enum Mode: String, Sendable {
-        /// Runs on appear with visible state.
+        /// Runs when shown.
         case automatic
-        /// The user presses a button.
+        /// Runs when the user presses a button.
         case interactive
     }
 
     public enum Kind: Equatable, Sendable {
-        /// Information only — a title and a message, nothing else. No
-        /// interaction: looking at it completes it.
+        /// Informational; completes when viewed.
         case message
         case wallpaper(WallpaperSpec)
         case dock(DockSpec)
@@ -25,18 +24,13 @@ public struct OnboardingItem: Equatable, Sendable {
         case remote(URL)
     }
 
-    /// Throughout the onboarding config, **scalar means confirm, array means
-    /// choose**: one value renders a confirmation the user acknowledges,
-    /// several render a picker. One rule instead of a per-step flag — a
-    /// single value can only be accepted, several have to be chosen from.
+    /// In onboarding, a single value is confirmed and several values are
+    /// offered as a choice.
     public struct WallpaperSpec: Equatable, Sendable {
-        /// One source = applied/confirmed; several = the user picks from a
-        /// grid.
         public let sources: [Source]
-        /// Verified after download. Only allowed with exactly one source —
-        /// one hash cannot vouch for several files (validator-enforced).
+        /// Only valid with a single source.
         public let sha256: String?
-        /// Offer "keep the current wallpaper" as an outcome.
+        /// Offers keeping the current wallpaper.
         public let allowKeepExisting: Bool
 
         public init(sources: [Source], sha256: String? = nil, allowKeepExisting: Bool = false) {
@@ -47,23 +41,21 @@ public struct OnboardingItem: Equatable, Sendable {
     }
 
     public enum DockStrategy: String, Sendable, CaseIterable {
-        /// Leave the Dock alone.
+        /// Leave the Dock unchanged.
         case keep
-        /// Append the configured items to the current Dock.
+        /// Add the configured items.
         case add
-        /// Remove everything, then add the configured items.
+        /// Remove all items, then add the configured items.
         case replace
     }
 
     public struct DockSpec: Equatable, Sendable {
-        /// One strategy = performed as configured; several = the user
-        /// chooses. "Keep current" is expressed by including `keep`, so
-        /// there is no separate allowKeepExisting here.
+        /// Several strategies are offered as a choice; include `keep` to offer
+        /// keeping the current Dock.
         public let strategies: [DockStrategy]
-        /// Paths or `bundleid:` entries; missing apps are skipped and reported
-        /// as "X added, Y skipped".
+        /// Paths or `bundleid:` entries. Missing apps are skipped.
         public let items: [String]
-        /// Wait for apps still being installed by provisioning.
+        /// Seconds to wait for listed apps to be installed.
         public let waitForItemsTimeout: Int
         public let restartDock: Bool
 
@@ -76,16 +68,15 @@ public struct OnboardingItem: Equatable, Sendable {
     }
 
     public struct DefaultAppsSpec: Equatable, Sendable {
-        /// Bundle ids, set via the `http` scheme. One = confirm, several =
-        /// the user picks from side-by-side candidates.
+        /// Bundle ids for the `http` scheme.
         public let browsers: [String]
-        /// scheme → candidate bundle ids (e.g. mailto).
+        /// Scheme to candidate bundle ids.
         public let urlSchemes: [String: [String]]
-        /// UTI → candidate bundle ids.
+        /// UTI to candidate bundle ids.
         public let types: [String: [String]]
-        /// Offer "keep the current default" as an outcome.
+        /// Offers keeping the current handler.
         public let allowKeepExisting: Bool
-        /// Shown before triggering, because macOS asks the user to confirm.
+        /// Shown before macOS asks the user to confirm.
         public let explanation: LocalizedText?
 
         public init(
@@ -110,9 +101,9 @@ public struct OnboardingItem: Equatable, Sendable {
     }
 
     public enum OpenCompletion: String, Sendable {
-        /// The user ticks it off.
+        /// Completed when the user opens the target.
         case manual
-        /// Completed when the item's validatePath exists.
+        /// Completed when `validatePath` exists.
         case validatePath
     }
 
@@ -154,9 +145,8 @@ public struct OnboardingItem: Equatable, Sendable {
         self.validatePath = validatePath
     }
 
-    /// defaultApps is always interactive (macOS prompts the user); open is
-    /// inherently interactive; message is inherently automatic (there is
-    /// nothing to interact with); the rest default to automatic.
+    /// `defaultApps` and `open` are always interactive, `message` always
+    /// automatic; other kinds default to automatic.
     public static func effectiveMode(requested: Mode?, kind: Kind) -> Mode {
         switch kind {
         case .defaultApps, .open:

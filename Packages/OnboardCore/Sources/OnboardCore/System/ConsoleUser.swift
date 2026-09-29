@@ -1,9 +1,8 @@
 import Foundation
 import SystemConfiguration
 
-/// A snapshot of the current console user, read from the SCDynamicStore.
-/// This is the only source of truth for "who owns the console" — the daemon
-/// never trusts a username supplied by a client.
+/// The console user, from SCDynamicStore. The daemon never accepts a user
+/// name from a client.
 public struct ConsoleUser: Equatable, Sendable {
     public let name: String
     public let uid: uid_t
@@ -15,7 +14,7 @@ public struct ConsoleUser: Equatable, Sendable {
         self.gid = gid
     }
 
-    /// The current console user, or nil when nobody owns the console.
+    /// nil when nobody is logged in at the console.
     public static func current() -> ConsoleUser? {
         var uid: uid_t = 0
         var gid: gid_t = 0
@@ -25,13 +24,12 @@ public struct ConsoleUser: Equatable, Sendable {
         return ConsoleUser(name: name, uid: uid, gid: gid)
     }
 
-    /// True for the Setup Assistant user during ADE enrollment.
+    /// The Setup Assistant user during enrollment.
     public var isSetupAssistant: Bool { name == "_mbsetupuser" }
 
-    /// True while the login window owns the console.
+    /// The login window.
     public var isLoginWindow: Bool { name == "loginwindow" }
 
-    /// A real interactive end user: not root, not Setup Assistant's
-    /// _mbsetupuser, not the login window's own session.
+    /// A real user: not root, `_mbsetupuser` or the login window.
     public var isRealUser: Bool { !isSetupAssistant && !isLoginWindow && name != "root" }
 }

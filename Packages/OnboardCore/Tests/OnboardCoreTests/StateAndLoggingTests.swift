@@ -41,11 +41,8 @@ import Testing
         #expect(try store.loadUserState(userName: "jordy") == nil)
     }
 
-    /// A file that exists but will not decode is quarantined, not treated as
-    /// blank: for device.json the difference is the completion marker, and
-    /// "corrupt" silently read as "no state" would re-provision a finished
-    /// Mac. The load still throws (callers use `try?` and start blank), but
-    /// the evidence survives under a name the next load will not read.
+    /// An undecodable file is moved aside and the load throws, rather than
+    /// being read as absent (which would discard the completion marker).
     @Test func corruptStateIsQuarantinedNotBlanked() throws {
         let store = try makeStore()
         defer { try? store.reset() }
@@ -63,7 +60,7 @@ import Testing
             .appending(path: "device.json.corrupt")
         #expect(FileManager.default.fileExists(atPath: quarantined.path))
         #expect(!FileManager.default.fileExists(atPath: store.deviceStateURL.path))
-        // And the next load is a clean "no state", not another throw.
+        // The next load finds no state.
         #expect(try store.loadDeviceState() == nil)
     }
 }
@@ -75,7 +72,7 @@ import Testing
         defer { try? FileManager.default.removeItem(at: directory) }
         let logURL = directory.appending(path: "onboard.log")
 
-        // 0 MB limit → every write rotates; keep 2 archives.
+        // 0 MB limit: every write rotates; keep 2 archives.
         let sink = RotatingFileSink(fileURL: logURL, maxFileSizeMB: 0, keepArchives: 2)
         for index in 0..<5 {
             sink.write("line \(index)")
@@ -92,9 +89,7 @@ import Testing
 }
 
 @Suite struct PeerRequirementTests {
-    /// The requirement is a string handed to the code-signing machinery, so a
-    /// typo is invisible until a signed build refuses to talk to itself. These
-    /// guard the two mistakes that actually happened.
+    /// Errors in the requirement string only appear in signed builds.
     @Test func namesBothSigningIdentitiesExactly() {
         let requirement = CodeSigning.peerRequirement(teamIdentifier: "TEAMID1234")
         #expect(requirement.contains("identifier \"be.jordythery.intuneonboard\""))
@@ -103,14 +98,13 @@ import Testing
         #expect(requirement.contains("anchor apple generic"))
     }
 
-    /// `identifier` compares exactly: a trailing `*` is matched literally and
-    /// rejects every peer. Never reintroduce a prefix form here.
+    /// `identifier` matches exactly; a trailing `*` would reject every peer.
     @Test func usesNoWildcard() {
         #expect(!CodeSigning.peerRequirement(teamIdentifier: "TEAMID1234").contains("*"))
     }
 
     @Test func daemonIdentifierIsUnderTheAppIdentifier() {
-        // build-pkg.sh passes "$IDENTIFIER.daemon" to codesign --identifier.
+        // Matches build-pkg.sh's `codesign --identifier`.
         #expect(ServiceIdentity.daemonSigningIdentifier == ServiceIdentity.bundleIdentifier + ".daemon")
     }
 }
@@ -127,14 +121,14 @@ import Testing
         #expect(policy.relaunchCount == 3)
     }
 
-    /// The escape hatch has to win immediately, whatever the count says.
+    /// Suppression takes effect immediately.
     @Test func suppressionWinsAtOnce() {
         var policy = RelaunchPolicy()
         #expect(policy.canRelaunch)
         policy.suppress()
         #expect(!policy.canRelaunch)
         #expect(policy.isSuppressed)
-        // Suppressed is a deliberate dismissal, not a fault: not "exhausted".
+        // Suppressed is not the same as exhausted.
         #expect(!policy.isExhausted)
     }
 
@@ -146,8 +140,7 @@ import Testing
         #expect(!policy.canRelaunch)
     }
 
-    /// A limit of 0 means "never put it back" — used by nothing yet, but the
-    /// arithmetic must not invert.
+    /// A limit of 0 never relaunches.
     @Test func zeroLimitNeverRelaunches() {
         let policy = RelaunchPolicy(limit: 0)
         #expect(!policy.canRelaunch)
@@ -159,7 +152,7 @@ import Testing
     @Test func firesOnControlOptionCommandQ() {
         #expect(EscapeHatch.matches(modifiers: [.control, .option, .command], characters: "q"))
         #expect(EscapeHatch.matches(modifiers: [.control, .option, .command], characters: "Q"))
-        // Shift tolerated.
+        // Shift allowed.
         #expect(EscapeHatch.matches(modifiers: [.control, .option, .command, .shift], characters: "q"))
     }
 
@@ -174,7 +167,7 @@ import Testing
         #expect(!EscapeHatch.matches(modifiers: [.control, .option, .command], characters: ""))
     }
 
-    /// fn+Q can deliver unrelated characters on laptop keyboards.
+    /// fn is not allowed.
     @Test func functionKeyBlocksIt() {
         #expect(!EscapeHatch.matches(
             modifiers: [.control, .option, .command, .function],
@@ -192,9 +185,7 @@ import Testing
     ]
     private let ids = ["m365", "edge", "companyportal", "teamviewerqs"]
 
-    /// The bug this exists for: a daemon re-spawned on demand after the marker
-    /// was written published "completed" with every item reset to pending, so
-    /// the UI read "Your Mac is ready" above "0 of 4 complete".
+    /// A completed run keeps its item records when republished.
     @Test func completedRunReportsWhatWasPersisted() {
         let snapshot = ProgressSnapshot.make(
             engineState: .completed,
@@ -236,9 +227,7 @@ import Testing
 }
 
 @Suite struct UserStateDecodingTests {
-    /// A user.json written before `dismissedProvisioningRunAt` existed has
-    /// to keep decoding. Failing would lose the user's onboarding progress
-    /// and walk them through every step again after an upgrade.
+    /// Older user.json files without `dismissedProvisioningRunAt` still decode.
     @Test func aStateFileWithoutTheDismissalFieldStillDecodes() throws {
         let json = """
         {"schemaVersion":1,"items":{},"completedAt":"2026-09-19T06:00:00Z"}
@@ -250,7 +239,7 @@ import Testing
         #expect(state.dismissedProvisioningRunAt == nil)
     }
 
-    /// Round-trips, so the dismissal actually survives to the next login.
+    /// The dismissal is saved.
     @Test func theDismissalSurvivesASaveAndLoad() throws {
         let store = StateStore(rootDirectory: FileManager.default.temporaryDirectory
             .appending(path: "user-state-tests-\(UUID().uuidString)"))
@@ -264,9 +253,7 @@ import Testing
 }
 
 @Suite struct DeviceStateDecodingTests {
-    /// A device.json written before `preflightFailures` existed has to keep
-    /// decoding. Failing would lose the completion marker and re-provision a
-    /// Mac that was already finished.
+    /// Older device.json files without `preflightFailures` still decode.
     @Test func aStateFileWithoutThePreflightCountStillDecodes() throws {
         let json = """
         {"schemaVersion":1,"items":{},"completedAt":"2026-09-19T06:00:00Z","lastRunAt":"2026-09-19T05:00:00Z"}
@@ -296,29 +283,22 @@ import Testing
         ProgressSnapshot(engineState: state, items: [], startedAt: startedAt)
     }
 
-    /// Provisioning's card is a device progress screen. Once the marker exists
-    /// there is nothing for the person at the keyboard to do with it, and a
-    /// Mac that has been ready for weeks should not announce it at every
-    /// login — which is exactly what it did before.
+    /// A completed Mac with no onboarding work shows nothing.
     @Test func finishedDeviceSaysNothing() {
         #expect(!UserSessionGate.shouldPresent(deviceCompleted: true, provisioning: .nothing))
     }
 
-    /// Someone who logs in mid-provisioning gets a genuine "please wait".
+    /// A run in progress is shown.
     @Test func unfinishedRunPresents() {
         #expect(UserSessionGate.shouldPresent(deviceCompleted: false, provisioning: .inProgress))
     }
 
-    /// The marker is only written when no required item failed, so a failed
-    /// run leaves `deviceCompleted` false and still presents — deliberately.
+    /// A failed run is shown.
     @Test func failedRunStillPresents() {
         #expect(UserSessionGate.shouldPresent(deviceCompleted: false, provisioning: .unseenFailure))
     }
 
-    /// The one this was rebuilt for. A permanently failing item means the
-    /// marker is never written, and keying on the marker alone opened the
-    /// window at every login for the life of the Mac — showing a completed
-    /// onboarding with nothing to do in it.
+    /// A failure already dismissed is not shown again.
     @Test func aDismissedFailureWithNoWorkLeftSaysNothing() {
         #expect(!UserSessionGate.shouldPresent(
             deviceCompleted: false,
@@ -327,13 +307,7 @@ import Testing
         ))
     }
 
-    /// The gate a user-enrolled VM walked straight through. `requireADE`
-    /// refused the Mac, and onboarding then ran anyway and demoted the
-    /// account — a real change made by a configuration that had just
-    /// declined to touch the Mac at all.
-    ///
-    /// Nothing is shown either: this Mac was never in scope, and its owner
-    /// cannot ADE-enrol it retroactively.
+    /// An ineligible Mac shows nothing, even with onboarding configured.
     @Test func anIneligibleMacShowsNothingEvenWithOnboardingOutstanding() {
         #expect(!UserSessionGate.shouldPresent(
             deviceCompleted: false,
@@ -347,15 +321,13 @@ import Testing
         ))
     }
 
-    /// The flag travels on the snapshot, not the engine state: both ADE and
-    /// network failures land on `preflightFailed`, and only one of them bars
-    /// onboarding.
+    /// Ineligibility is a snapshot flag, separate from `preflightFailed`.
     @Test func ineligibilityOutranksADismissalAndIsNotJustPreflightFailed() {
         let ran = Date(timeIntervalSince1970: 1_000)
         let refused = ProgressSnapshot(
             engineState: .preflightFailed, items: [], startedAt: ran, ineligible: true
         )
-        // Even if this user dismissed this very run, it is still ineligible.
+        // Dismissal does not change ineligibility.
         #expect(ProvisioningNews(snapshot: refused, dismissedRunAt: ran) == .ineligible)
 
         let networkFailure = ProgressSnapshot(
@@ -365,8 +337,7 @@ import Testing
         #expect(ProvisioningNews(snapshot: networkFailure, dismissedRunAt: nil) == .unseenFailure)
     }
 
-    /// Onboarding beats everything: outstanding onboarding work is the whole
-    /// reason the user-session UI exists.
+    /// Outstanding onboarding is always shown.
     @Test func outstandingUserWorkWins() {
         #expect(UserSessionGate.shouldPresent(
             deviceCompleted: true,
@@ -383,9 +354,7 @@ import Testing
         }
     }
 
-    /// No snapshot at all means the daemon has not published yet — the card
-    /// says "connecting" while it starts, rather than the app deciding there
-    /// is nothing to show and quitting.
+    /// No snapshot yet counts as in progress.
     @Test func nothingPublishedYetIsInProgress() {
         #expect(ProvisioningNews(snapshot: nil, dismissedRunAt: nil) == .inProgress)
     }
@@ -394,8 +363,7 @@ import Testing
         #expect(ProvisioningNews(snapshot: snapshot(.completed), dismissedRunAt: nil) == .nothing)
     }
 
-    /// Dismissal is keyed to the run, so the same verdict is not repeated
-    /// while a newer one still gets through.
+    /// Dismissal applies to one run; a newer failure is shown.
     @Test func aFailureIsNewsUntilThisRunHasBeenDismissed() {
         let ran = Date(timeIntervalSince1970: 1_000)
         let failed = snapshot(.completedWithErrors, startedAt: ran)
@@ -405,17 +373,14 @@ import Testing
         #expect(ProvisioningNews(snapshot: failed, dismissedRunAt: ran.addingTimeInterval(-60)) == .unseenFailure)
     }
 
-    /// A preflight failure leaves no failed *item* behind, so an
-    /// item-counting rule missed it entirely — but the Mac is just as
-    /// unprovisioned and the user just as entitled to be told once.
+    /// A preflight failure counts as a failure.
     @Test func aPreflightFailureIsAlsoNews() {
         #expect(ProvisioningNews(snapshot: snapshot(.preflightFailed), dismissedRunAt: nil) == .unseenFailure)
     }
 }
 
 @Suite struct DeviceInfoTests {
-    /// Every field is optional except the ones we can always get, so the
-    /// popover degrades instead of showing "(null)" to a technician.
+    /// Missing fields are omitted, not shown as "(null)".
     @Test func formatsWhatItHasAndOmitsWhatItDoesnt() {
         let full = DeviceInfo(
             marketingName: "MacBook Pro (14-inch, Nov 2023)",
@@ -444,8 +409,7 @@ import Testing
         #expect(sparse.isOnline == nil)
     }
 
-    /// Org naming conventions bake the serial into the computer name; printing
-    /// it twice makes the line harder to read out loud.
+    /// The serial is omitted when the computer name contains it.
     @Test func summaryDropsADuplicateSerial() {
         let named = DeviceInfo(
             computerName: "Contoso — MacBook Pro 14 — C02ABC123DEF",
@@ -464,8 +428,7 @@ import Testing
         #expect(plain.summary.contains("C304JQC4KM"))
     }
 
-    /// Reads real hardware: these are the fields the popover leans on, and a
-    /// silent nil would only show up in front of a customer.
+    /// Reads the real device.
     @Test func currentDeviceResolvesTheEssentials() {
         let device = DeviceInfo.current()
         #expect(!device.computerName.isEmpty)
@@ -478,8 +441,7 @@ import Testing
     }
 }
 
-/// Stands in for `/usr/bin/log` being unavailable — as it may well be for
-/// `_mbsetupuser` during Setup Assistant.
+/// Simulates `/usr/bin/log` being unavailable.
 private struct FailingRunner: ProcessRunning {
     struct Unavailable: Error, LocalizedError {
         var errorDescription: String? { "no such executable" }
@@ -504,8 +466,7 @@ private struct FailingRunner: ProcessRunning {
         return url
     }
 
-    /// install.log is routinely tens of megabytes; a viewer that reads it all
-    /// stalls the UI to show boot messages nobody wants.
+    /// Only the end of a large file is read.
     @Test func tailReadsTheEndAndDropsAPartialLine() throws {
         let lines = (1...4000).map { "line \($0) padded out to make this file large enough to trim" }
         let url = try temporaryFile(lines.joined(separator: "\n"))
@@ -515,7 +476,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(tail.count <= 2_000)
         #expect(tail.contains("line 4000"))
         #expect(!tail.contains("line 1 padded"), "should have read only the end")
-        // The first line must be whole, not a fragment.
+        // The first line is complete.
         let first = tail.split(separator: "\n").first ?? ""
         #expect(first.hasPrefix("line "), "got a partial line: \(first)")
     }
@@ -537,7 +498,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(!summary.contains("chatter"))
     }
 
-    /// An already-terse log has no patterns and must come back whole.
+    /// No patterns returns the whole text.
     @Test func noPatternsMeansNoFiltering() {
         let text = "one\ntwo\nthree"
         #expect(LogInspection.summarize(text, patterns: []) == text)
@@ -560,8 +521,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(try String(contentsOf: copied, encoding: .utf8) == "hello from the onboarding log")
     }
 
-    /// Several tabs are views onto install.log; the export must not trip over
-    /// copying the same path twice.
+    /// Export copies a file shared by several tabs once.
     @Test func exportDeduplicatesSharedPaths() throws {
         let source = try temporaryFile("shared")
         defer { try? FileManager.default.removeItem(at: source) }
@@ -582,21 +542,17 @@ private struct FailingRunner: ProcessRunning {
     }
 
     @Test func fourTabsWithDistinctIDs() {
-        // Our own tab carries the product name, not a stage name: the file it
-        // shows covers provisioning and onboarding both.
+        // Covers both stages.
         #expect(LogFile.all.map(\.title) == ["Intune Onboard", "Installomator", "Installer", "Intune"])
         #expect(Set(LogFile.all.map(\.id)).count == LogFile.all.count)
         #expect(LogFile.app.summaryPatterns.isEmpty, "our own log is already terse")
-        // Installomator's own log, not our captured stdout copy: that is the
-        // only file with its download progress in it.
+        // Installomator's own log file.
         #expect(LogFile.installomator.source == .file(URL(filePath: "/var/log/Installomator.log")))
     }
 
     // MARK: - Noise
 
-    /// Microsoft's Office packages emit hundreds of these while installing.
-    /// They are benign, they contain the word "Error" so the summary kept
-    /// every one of them, and on hardware they filled the whole panel.
+    /// Hides Microsoft's benign "Package Authoring Error" lines.
     @Test func installerNoiseIsDroppedEvenThoughItSaysError() {
         let text = """
         2026-09-17 11:27:16+02:00 Mac installd[512]: IFJS: Package Authoring Error: access to path "/Library/Managed Preferences/com.microsoft.office.plist" requires <options allow-external-scripts='true'>
@@ -610,7 +566,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(!cleaned.contains("IFJS"))
         #expect(!cleaned.contains("_buildInstallPlanReturningError"))
         #expect(cleaned.contains("Installed \"Microsoft Office\""))
-        // The real failure has to survive both filters.
+        // Real failures remain.
         #expect(cleaned.contains("Install Failed"))
         let summarised = LogInspection.summarize(cleaned, patterns: LogFile.installer.summaryPatterns)
         #expect(summarised.contains("Install Failed"))
@@ -621,9 +577,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(LogInspection.removeNoise("a\nb", patterns: []) == "a\nb")
     }
 
-    /// Our own pkg install filled the Installer tab with PackageKit's sandbox
-    /// plumbing: the sandbox path ends in our bundle id, so those lines
-    /// matched the "IntuneOnboard" summary pattern.
+    /// Hides PackageKit sandbox lines, which contain this app's bundle id.
     @Test func packageKitSandboxScaffoldingIsDroppedButOutcomesSurvive() {
         let text = """
         2026-09-17 12:02:04+02:00 Mac installd[512]: PackageKit: Executing script "preinstall" in /Library/InstallerSandboxes/.PKInstallSandboxManager/E6FCC341/activeSandbox/Scripts/be.jordythery.intuneonboard.9bWoVD
@@ -636,9 +590,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(cleaned.contains("Writing receipt"), "an outcome, not plumbing")
     }
 
-    /// `mobileassetd` logs a multi-line NSError every time it cannot reach
-    /// `softwareupdated`, which during Setup Assistant is constantly. Nothing
-    /// to do with our installs; each one filled a third of the panel.
+    /// Hides mobileassetd's softwareupdated connection errors.
     @Test func softwareUpdateDaemonChatterIsDropped() {
         let text = """
         Sep 17 19:15:40 MacBook-Air mobileassetd[111]: SUPreferenceManager: Connection proxy failure with error:Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.softwareupdated was invalidated"
@@ -650,8 +602,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(cleaned.contains("Installed \"Microsoft Edge\""))
     }
 
-    /// Intune's agent logs reading a script's stderr *pipe* as "error stream",
-    /// twice a second. A healthy enrollment looked like it was failing.
+    /// Hides Intune's routine "error stream" lines.
     @Test func intuneErrorStreamBookkeepingIsNotAnError() {
         let text = """
         | IntuneMDM-Daemon | I | 17377 | ScriptOrchestrationLogger | Starting reading error stream ObjectIdentifier(0x9dc849300) State: ScriptEngine.run
@@ -662,7 +613,7 @@ private struct FailingRunner: ProcessRunning {
         let cleaned = LogInspection.removeNoise(text, patterns: LogFile.intuneNoise)
         #expect(!cleaned.contains("error stream"))
         #expect(cleaned.contains("verify enrollment status"))
-        // The line someone actually opens this tab for.
+        // Real failures remain.
         #expect(cleaned.contains("Failed to install profile"))
         let summarised = LogInspection.summarize(cleaned, patterns: LogFile.intune.summaryPatterns)
         #expect(summarised.contains("Failed to install profile"))
@@ -670,8 +621,7 @@ private struct FailingRunner: ProcessRunning {
 
     // MARK: - Resolving log locations
 
-    /// Intune names each log after the moment it was opened, so the tab has to
-    /// find the newest rather than a fixed path.
+    /// The newest Intune log is chosen.
     @Test func newestFileWinsAcrossDirectories() throws {
         let root = URL(filePath: NSTemporaryDirectory()).appending(path: "intune-\(UUID().uuidString)")
         let first = root.appending(path: "a")
@@ -687,7 +637,7 @@ private struct FailingRunner: ProcessRunning {
         try "old".write(to: old, atomically: true, encoding: .utf8)
         try "new".write(to: new, atomically: true, encoding: .utf8)
         try "nope".write(to: ignored, atomically: true, encoding: .utf8)
-        // Modification dates decide, not the names in them.
+        // By modification date, not name.
         try FileManager.default.setAttributes(
             [.modificationDate: Date(timeIntervalSince1970: 1_000)], ofItemAtPath: old.path
         )
@@ -696,14 +646,11 @@ private struct FailingRunner: ProcessRunning {
             id: "intune", title: "Intune",
             source: .newest(in: [first, second, root.appending(path: "missing")], extension: "log")
         )
-        // Compared by name: the temporary directory is reached through the
-        // /var → /private/var symlink, so the URLs differ as strings while
-        // naming the same file.
+        // Compared by name: /var and /private/var differ as strings.
         #expect(file.resolvedURL()?.lastPathComponent == new.lastPathComponent)
     }
 
-    /// Nothing to read is a normal state during provisioning: Intune installs its
-    /// agent partway through enrollment.
+    /// A missing Intune log is not an error.
     @Test func missingLogResolvesToNothingRatherThanAnEmptyPath() {
         let absent = LogFile(
             id: "x", title: "X",
@@ -718,9 +665,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(emptyDirectory.resolvedURL() == nil)
     }
 
-    /// The MDM slice of the unified log is where enrollment actually reports
-    /// itself; the export must produce the file even when `log` fails, since
-    /// the error is then the finding.
+    /// The MDM log file is written even when `log` fails.
     @Test func mdmCaptureAlwaysWritesAFile() async throws {
         let folder = URL(filePath: NSTemporaryDirectory()).appending(path: "mdm-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -737,8 +682,7 @@ private struct FailingRunner: ProcessRunning {
 
     // MARK: - Line parsing
 
-    /// The clock this Mac would show for an instant — the panel's contract,
-    /// so the expectation can't be hard-coded to the test machine's zone.
+    /// The expected local time, independent of the test machine's zone.
     private func localClock(of iso: String) -> String {
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -752,7 +696,7 @@ private struct FailingRunner: ProcessRunning {
         return formatter.string(from: date)
     }
 
-    /// Our own format: ISO8601 with milliseconds and a Z.
+    /// ISO 8601 with milliseconds and Z.
     @Test func parsesOurISO8601Lines() {
         let lines = LogInspection.lines("2026-09-17T08:53:37.895Z onboardd run starting")
         #expect(lines.count == 1)
@@ -761,23 +705,18 @@ private struct FailingRunner: ProcessRunning {
         #expect(lines[0].level == .normal)
     }
 
-    /// Our file log writes UTC, which is right for a file and wrong for a
-    /// panel read next to Installomator's local times: the Onboarding tab
-    /// was two hours off the menu bar, and seven off at the login window
-    /// where the Mac's zone isn't set yet.
+    /// UTC times are shown in local time.
     @Test func zoneQualifiedTimesAreShownInThisMacsTime() {
         let utc = LogInspection.lines("2026-09-17T08:53:37.895Z onboardd run starting")[0].time
         let offset = LogInspection.lines("2026-09-17T10:53:37.895+02:00 onboardd run starting")[0].time
         #expect(utc == offset, "the same instant in two notations must render identically")
 
-        // Installomator writes no zone; that stamp is already local and is
-        // shown exactly as it stands.
+        // Installomator times have no zone and are shown unchanged.
         let bare = LogInspection.lines("2026-09-17 01:53:39 : REQ : label : Downloading")[0].time
         #expect(bare == "01:53:39")
     }
 
-    /// Installomator repeats `: LEVEL : label :` on every line; in a narrow
-    /// panel that scaffolding would crowd out the message.
+    /// Installomator's `: LEVEL : label :` prefix is removed.
     @Test func stripsInstallomatorScaffolding() {
         let lines = LogInspection.lines(
             "2026-09-17 01:53:39 : REQ   : microsoftofficebusinesspro : Downloading https://go.microsoft.com/fwlink"
@@ -794,10 +733,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(lines[0].message == "PackageKit: Registered bundle")
     }
 
-    /// install.log writes an hour-only offset (`+02`, or `-07` on a Mac whose
-    /// zone Setup Assistant hasn't set yet). Requiring minutes left a `-07`
-    /// at the head of every installer line and defeated the prefix strip, so
-    /// the hostname and `installer[pid]:` stayed in the message.
+    /// Hour-only offsets (`+02`, `-07`) are parsed.
     @Test func hourOnlyZoneOffsetsAreParsed() {
         let lines = LogInspection.lines(
             "2026-09-18 10:03:22-07 L9P-MacBook-Air installer[1434]: PackageKit: Registered bundle"
@@ -806,9 +742,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(lines[0].message == "PackageKit: Registered bundle")
     }
 
-    /// The whole Installer tab came up red because every PackageKit line
-    /// mentioning `Microsoft Error Reporting.app` matched a bare "error".
-    /// False red is worse than none: nothing stands out any more.
+    /// Paths containing "Error" do not mark a line as an error.
     @Test func thirdPartyLinesAreOnlyRedWhenTheyReallyFail() {
         let benign = LogInspection.lines("""
         2026-09-18 10:03:22-07 air installer[1434]: PackageKit: Registered bundle file:///Applications/OneDrive.app/Contents/SharedSupport/Microsoft%20Error%20Reporting.app/ for uid 0
@@ -823,8 +757,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(real.allSatisfy { $0.level == .error }, "\(real.map(\.level))")
     }
 
-    /// install.log mixes syslog-style lines in with the ISO ones; they were
-    /// showing their date, hostname and pid inside the message.
+    /// Syslog-style lines are parsed.
     @Test func syslogStyleLinesAreParsed() {
         let lines = LogInspection.lines(
             "Sep 18 17:22:26 MacBook-Air installd[99]: PackageKit: Writing receipt for our.pkg"
@@ -833,22 +766,21 @@ private struct FailingRunner: ProcessRunning {
         #expect(lines[0].message == "PackageKit: Writing receipt for our.pkg")
     }
 
-    /// An error object carrying code 0 is macOS reporting success in the
-    /// shape of a failure.
+    /// Errors with code 0 are not errors.
     @Test func errorObjectsWithCodeZeroAreNotFailures() {
         let lines = LogInspection.lines(
             #"Sep 18 17:22:26 air proc[99]: Created the folder /System/Volumes/Preboot for com.apple.Boot.plist (error Error Domain=NSPOSIXErrorDomain Code=0 "Undefined error: 0")"#
         )
         #expect(lines[0].level == .normal)
 
-        // A real code still reddens.
+        // A non-zero code is.
         let real = LogInspection.lines(
             #"Sep 18 17:25:09 air proc[99]: SUScan: Error encountered in scan: Error Domain=NSURLErrorDomain Code=-1009"#
         )
         #expect(real[0].level == .error)
     }
 
-    /// Our own log gets the benefit of the doubt, because we write it.
+    /// This app's wording marks errors in its own log.
     @Test func ourOwnPhrasingStillColours() {
         let ours = LogInspection.lines(
             """
@@ -861,14 +793,12 @@ private struct FailingRunner: ProcessRunning {
         )
         #expect(ours.map(\.level) == [.error, .error, .warning, .normal])
 
-        // The same wording in a third-party tab only reddens on the hard
-        // patterns, and "could not" is not one of them.
+        // In other logs only explicit markers count.
         let strict = LogInspection.lines("2026-09-17T08:53:38.895Z could not record acknowledgement")
         #expect(strict[0].level == .normal)
     }
 
-    /// Installomator labels its own lines, and an explicit label always wins
-    /// over any reading of the wording. (Phrasing is covered above.)
+    /// Installomator's level label takes precedence.
     @Test func explicitLevelsAreLiftedForColour() {
         let error = LogInspection.lines("2026-09-17 01:53:39 : ERROR : label : could not download")
         #expect(error[0].level == .error)
@@ -884,7 +814,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(LogInspection.lines("\n\n  \n").isEmpty)
     }
 
-    /// A line in no known format still has to render, timestamp or not.
+    /// Lines in unknown formats are kept.
     @Test func unrecognisedLinesSurviveWhole() {
         let lines = LogInspection.lines("################## Start Installomator v. 10.10beta")
         #expect(lines.count == 1)
@@ -907,11 +837,7 @@ private struct FailingRunner: ProcessRunning {
         ]
     }
 
-    /// A 15-inch Air, the run that exposed the real behaviour: Setup Assistant
-    /// owns exactly one window and it is the full-screen backdrop, with the
-    /// card it appears to draw being a subview. Matching that window made our
-    /// own window full screen and stretched the card across it, so it must
-    /// *not* be treated as a panel.
+    /// A full-screen Setup Assistant window is the backdrop, not a panel.
     @Test func setupAssistantsFullScreenBackdropIsNotAPanel() {
         let screen = CGRect(x: 0, y: 0, width: 1710, height: 1107)
         #expect(SetupAssistantPanel.frame(
@@ -919,14 +845,14 @@ private struct FailingRunner: ProcessRunning {
             screen: screen
         ) == nil)
 
-        // …and so the window lands card-sized and centred on the backdrop.
+        // The window is the fallback size, centred.
         let placed = SetupAssistantPanel.windowFrame(matching: nil, screen: screen)
         #expect(placed.size == SetupAssistantPanel.fallbackSize)
         #expect(placed.midX == 855)
         #expect(placed.midY == 553.5)
     }
 
-    /// Kept for the day a release does give the card its own window.
+    /// A card-sized Setup Assistant window is matched.
     @Test func findsACardSizedWindowIfThereIsOne() {
         let frame = SetupAssistantPanel.frame(
             fromWindowList: [
@@ -938,8 +864,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 320, y: 100, width: 800, height: 600))
     }
 
-    /// Setup Assistant also draws small helper windows; picking one of those
-    /// would be worse than using the fallback.
+    /// Small helper windows are ignored.
     @Test func ignoresItsSmallHelperWindows() {
         let frame = SetupAssistantPanel.frame(
             fromWindowList: [
@@ -952,8 +877,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 501, y: 287, width: 798, height: 595))
     }
 
-    /// The largest candidate wins, but only among those that aren't the
-    /// backdrop — here the 1700×1000 one is ruled out and the 900×700 chosen.
+    /// The largest non-backdrop window wins.
     @Test func picksTheLargestCandidateThatIsNotTheBackdrop() {
         let frame = SetupAssistantPanel.frame(
             fromWindowList: [
@@ -991,9 +915,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 10, y: 20, width: 800, height: 600))
     }
 
-    /// The census is what the log carries, so the next hardware run records
-    /// what Setup Assistant really had on screen instead of leaving it to be
-    /// assumed again.
+    /// The census lists Setup Assistant's windows, for the log.
     @Test func censusListsEveryWindowIncludingTheBackdrop() {
         let census = SetupAssistantPanel.setupAssistantWindows(in: [
             window(owner: "Setup Assistant", x: 0, y: 33, width: 1710, height: 1074),
@@ -1004,10 +926,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(census.contains(CGRect(x: 0, y: 33, width: 1710, height: 1074)))
     }
 
-    /// Live call against the real window server. Deliberately not asserting
-    /// anything about the result: whatever is named "Setup Assistant" on this
-    /// machine would be found. What matters is that it answers instead of
-    /// crashing.
+    /// Queries the real window server; only checks that it returns.
     @Test func currentFrameAnswersWithoutCrashing() {
         if let frame = SetupAssistantPanel.currentFrame(screen: CGRect(x: 0, y: 0, width: 1800, height: 1169)) {
             #expect(frame.width >= 400)
@@ -1018,9 +937,8 @@ private struct FailingRunner: ProcessRunning {
 
     // MARK: - Window placement
 
-    /// The 14-inch measurement, which is the one confirmed against a stand-in
-    /// panel: CoreGraphics puts the panel 287 pt down from the top, AppKit
-    /// wants 287 pt up from the bottom (1169 - 287 - 595).
+    /// Converts a measured panel: 287 pt from the top becomes 287 pt from
+    /// the bottom (1169 − 287 − 595).
     @Test func placesTheWindowOnThePanel() {
         let frame = SetupAssistantPanel.windowFrame(
             matching: CGRect(x: 501, y: 287, width: 798, height: 595),
@@ -1029,9 +947,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 501, y: 287, width: 798, height: 595))
     }
 
-    /// Nothing here is tied to a screen size or a menu bar height, which is
-    /// what makes a 16-inch or an Air behave: a panel 40 pt from the top of a
-    /// 1000 pt screen is 260 pt from the bottom whatever the machine.
+    /// Independent of screen size and menu bar height.
     @Test func placementFollowsTheScreenItIsGiven() {
         let frame = SetupAssistantPanel.windowFrame(
             matching: CGRect(x: 50, y: 40, width: 800, height: 700),
@@ -1040,9 +956,8 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 50, y: 260, width: 800, height: 700))
     }
 
-    /// A panel on a display to the right of the primary one: x passes straight
-    /// through, and the flip still uses the primary's height, because that is
-    /// what both coordinate systems are anchored to.
+    /// A panel on a second display: x unchanged, y flipped using the
+    /// primary display's height.
     @Test func panelOnASecondDisplayConvertsToo() {
         let frame = SetupAssistantPanel.windowFrame(
             matching: CGRect(x: 2100, y: 200, width: 800, height: 600),
@@ -1051,8 +966,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 2100, y: 369, width: 800, height: 600))
     }
 
-    /// A panel that isn't centred is still matched exactly — the point is to
-    /// coincide with it, not to re-centre it.
+    /// Off-centre panels are matched exactly.
     @Test func offCentrePanelsAreMatchedNotRecentred() {
         let frame = SetupAssistantPanel.windowFrame(
             matching: CGRect(x: 0, y: 0, width: 800, height: 600),
@@ -1061,8 +975,7 @@ private struct FailingRunner: ProcessRunning {
         #expect(frame == CGRect(x: 0, y: 300, width: 800, height: 600))
     }
 
-    /// No Setup Assistant (a user session, the demo): centre the fallback,
-    /// which is where it draws its panel anyway.
+    /// Without Setup Assistant, the fallback size is centred.
     @Test func withoutAPanelTheFallbackIsCentred() {
         let frame = SetupAssistantPanel.windowFrame(
             matching: nil,

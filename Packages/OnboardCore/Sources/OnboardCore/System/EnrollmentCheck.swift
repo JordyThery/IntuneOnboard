@@ -1,19 +1,11 @@
 import Foundation
 
-/// Is this Mac enrolled through Automated Device Enrollment?
-///
-/// Synchronous, because both callers need the answer before they can decide
-/// anything: the user-session app before its first frame, and `status`
-/// before it prints its single line. `profiles` returns in well under a
-/// second, and neither caller reaches here unless the profile sets
-/// `requireADE`.
-///
-/// `Preflight` keeps its own async version — that one is injectable so the
-/// engine's tests can drive both answers without a subprocess.
+/// Whether the Mac was enrolled through Automated Device Enrollment.
+/// Synchronous, for callers that need the answer before showing anything.
+/// `Preflight` has an injectable async equivalent.
 public enum EnrollmentCheck {
-    /// Any failure to ask counts as **enrolled**. Refusing a Mac because a
-    /// subprocess misbehaved would strand a legitimate one, and the daemon
-    /// still makes the authoritative check before provisioning anything.
+    /// Treats a failed query as enrolled; the daemon's preflight makes the
+    /// definitive check.
     public static func isADEEnrolled() -> Bool {
         let process = Process()
         process.executableURL = URL(filePath: "/usr/bin/profiles")
@@ -38,8 +30,7 @@ public enum EnrollmentCheck {
             }
     }
 
-    /// True when the profile asks for ADE and this Mac was not enrolled that
-    /// way — the configuration does not apply here at all.
+    /// True when `requireADE` is set and the Mac was not enrolled through ADE.
     public static func isIneligible(configuration: Configuration?) -> Bool {
         configuration?.requireADE == true && !isADEEnrolled()
     }

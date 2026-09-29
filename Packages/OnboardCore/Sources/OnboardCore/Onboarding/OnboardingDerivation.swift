@@ -1,53 +1,43 @@
 import CryptoKit
 import Foundation
 
-/// An onboarding step's standing: **re-derived from the system every time
-/// the list loads**, not just read back from stored state. A step the user
-/// undoes in System Settings un-completes; a step whose end state already
-/// holds (the browser is already Edge) completes without ever running.
+/// A step's status, evaluated from the system each time, not taken from
+/// stored state. Reverting a setting makes the step incomplete again.
 public enum StepStatus: Equatable, Sendable {
-    /// Needs doing — shown in the sidebar's suggested queue.
+    /// Not done.
     case suggested
-    /// Satisfied during this session; Continue is enabled and pressing it
-    /// acknowledges the step. Only the engine produces this — derivation
-    /// yields suggested/completed, because "satisfied but unacknowledged"
-    /// is a session-level distinction, not a system state.
+    /// Done in this session; Continue acknowledges it. Set by the engine,
+    /// never by derivation.
     case canContinue
-    /// Done — filtered from the suggested queue but still reachable.
+    /// Done.
     case completed
 }
 
-/// The user's pick on a step whose config offered choices (array-shaped
-/// values). Scalar-shaped steps pass `nil` or `.keepCurrent`.
+/// The user's selection for a step that offers a choice.
 public enum StepChoice: Equatable, Sendable {
-    /// "Leave it as it is" — offered when the step's `allowKeepExisting` is true.
+    /// Keep the current setting (`allowKeepExisting`).
     case keepCurrent
     /// Index into `WallpaperSpec.sources`.
     case wallpaper(sourceIndex: Int)
     case dock(OnboardingItem.DockStrategy)
-    /// Target key (`http`, a scheme, or a UTI) → chosen bundle id.
+    /// Target key (`http`, a scheme or a UTI) to bundle id.
     case defaultApps([String: String])
 }
 
-/// What derivation is allowed to ask the system. Injected so the rules stay
-/// pure and testable; the live implementations arrive with the actions.
+/// System queries used by derivation; injectable for tests.
 public struct OnboardingProbes: Sendable {
-    /// The console user the onboarding runs for.
+    /// The user onboarding runs for.
     public var currentUserName: @Sendable () -> String
     public var fileExists: @Sendable (String) -> Bool
-    /// desktoppr with no arguments prints the current wallpaper's path.
+    /// The current wallpaper, from desktoppr.
     public var currentWallpaperPath: @Sendable () async -> String?
-    /// Current handler for a target. Keys as in `StepChoice.defaultApps`.
+    /// The current handler for a target.
     public var currentDefaultApp: @Sendable (DefaultAppTarget) async -> String?
     public var isMemberOfAdminGroup: @Sendable (String) async -> Bool
-    /// App paths currently in the user's Dock (persistent-apps), in order —
-    /// what the dock step's preview simulates its actions against.
+    /// App paths in the user's Dock, in order.
     public var currentDockItems: @Sendable () async -> [String]
-    /// Whether an app with this bundle id is installed. Drives the
-    /// auto-skip: a defaultApps candidate that isn't on the Mac can't be
-    /// picked and must not block the step. Defaults to "assume installed" —
-    /// the safe direction, since assuming *missing* would silently auto-skip
-    /// everything in a wiring that forgot the probe.
+    /// Whether an app is installed. Defaults to true, so a missing probe
+    /// never skips steps.
     public var isAppInstalled: @Sendable (String) -> Bool
 
     public init(
@@ -69,16 +59,11 @@ public struct OnboardingProbes: Sendable {
     }
 }
 
-/// What the Dock would contain after each action — the preview is computed
-/// from the *current* Dock, not just the configured list, because "replace"
-/// only means something against what is there now. Pure, so the merge
-/// is testable; nothing is applied here.
+/// The Dock after each strategy, computed from the current Dock.
 public enum DockPreview {
     /// - Parameters:
-    ///   - current: the user's Dock now, in order.
-    ///   - recommended: the configured items, already resolved to existing
-    ///     paths (missing apps are skipped from the preview exactly as the
-    ///     action would skip them).
+    ///   - current: the current Dock, in order.
+    ///   - recommended: configured items that exist on this Mac.
     public static func items(
         current: [String],
         recommended: [String],
@@ -90,20 +75,20 @@ public enum DockPreview {
         case .replace:
             return recommended
         case .add:
-            // dockutil refuses duplicates, so the preview must too.
+            // No duplicates, as with dockutil.
             let present = Set(current)
             return current + recommended.filter { !present.contains($0) }
         }
     }
 }
 
-/// One target a defaultApps step manages.
+/// One target of a `defaultApps` step.
 public enum DefaultAppTarget: Hashable, Sendable {
     case browser
     case scheme(String)
     case uniformType(String)
 
-    /// The key used in `StepChoice.defaultApps` and in records.
+    /// Key used in `StepChoice.defaultApps` and in records.
     public var key: String {
         switch self {
         case .browser: "http"
@@ -114,7 +99,7 @@ public enum DefaultAppTarget: Hashable, Sendable {
 }
 
 extension OnboardingItem.DefaultAppsSpec {
-    /// Every target this step manages, with its candidates, in a stable order.
+    /// Targets with their candidates, in a stable order.
     public var targets: [(target: DefaultAppTarget, candidates: [String])] {
         var result: [(DefaultAppTarget, [String])] = []
         if !browsers.isEmpty { result.append((.browser, browsers)) }
@@ -128,16 +113,15 @@ extension OnboardingItem.DefaultAppsSpec {
     }
 }
 
-/// Where a wallpaper source lives locally once available.
+/// Local locations of wallpaper sources.
 public enum WallpaperLocation {
-    /// Shared, root-owned; the daemon downloads here so every user's onboarding
-    /// finds the file without its own network round trip.
+    /// Root-owned directory the daemon downloads into, shared by all users.
     public static let sharedDirectory = URL(
         filePath: "/Library/Application Support/IntuneOnboard/wallpaper"
     )
 
-    /// Local path for a source. Remote files are named by a URL-hash prefix +
-    /// basename, so two sources ending in `wallpaper.jpg` cannot collide.
+    /// Local path for a source. Downloads are named by URL hash prefix and
+    /// file name, so names cannot collide.
     public static func destination(
         for source: OnboardingItem.Source,
         in directory: URL = sharedDirectory
@@ -153,27 +137,23 @@ public enum WallpaperLocation {
     }
 }
 
-/// The re-derivation rules, one per kind. Pure given the probes.
+/// Status rules per kind.
 public enum OnboardingDerivation {
     public static func status(
         of item: OnboardingItem,
         record: ItemRecord?,
         probes: OnboardingProbes
     ) async -> StepStatus {
-        // Disabled items are recorded as skipped and never suggested.
+        // Disabled items count as done.
         guard item.enabled else { return .completed }
 
         switch item.kind {
         case .message:
-            // Completes the moment it has been seen — the auto-perform on
-            // selection writes the record; there is nothing to measure.
+            // Completed by being viewed.
             return recordBased(record)
 
         case .wallpaper(let spec):
-            // Completed when the wallpaper on screen *is* one of ours —
-            // desktoppr can read it back, so this survives the user changing
-            // it in System Settings (it un-completes) and survives a wiped
-            // state file (it stays completed).
+            // Done when the current wallpaper is one of the sources.
             if record?.outcome == .skipped { return .completed }
             guard let current = await probes.currentWallpaperPath() else {
                 return recordBased(record)
@@ -182,30 +162,22 @@ public enum OnboardingDerivation {
             return ours.contains(current) ? .completed : .suggested
 
         case .dock:
-            // No cheap way to read "is the Dock as configured" back, so the
-            // record decides.
+            // Not measurable; uses the record.
             return recordBased(record)
 
         case .defaultApps(let spec):
-            // Auto-completes when every managed target is already set to one
-            // of its candidates — prompting for something already true is
-            // just noise with a confirmation dialog attached.
+            // Done when every target already uses one of its candidates.
             for (target, candidates) in spec.targets {
-                // A target none of whose candidates are installed is
-                // auto-skipped: it can't be acted on, so it must not hold
-                // the step hostage.
+                // Skip targets with no installed candidate.
                 guard candidates.contains(where: probes.isAppInstalled) else {
                     continue
                 }
                 guard let current = await probes.currentDefaultApp(target),
                       candidates.contains(current)
                 else {
-                    // Completion is MEASURED, never taken from a success
-                    // record: utiluti exiting 0 only means the request was
-                    // made — the user can still decline macOS's own prompt,
-                    // and hardware showed exactly that gap. The one recorded
-                    // outcome that counts is "keep current" (skipped), which
-                    // is a decision, not a claim about the system.
+                    // Measured, not taken from a success record: the user
+                    // can decline the macOS prompt. Keeping the current
+                    // handler (skipped) counts as done.
                     return record?.outcome == .skipped ? .completed : .suggested
                 }
             }
@@ -225,8 +197,7 @@ public enum OnboardingDerivation {
         case .demoteUser(let exclude):
             let user = probes.currentUserName()
             if exclude.contains(user) { return .completed }
-            // Membership is the truth, whatever any record says: demotion by
-            // other means completes it, re-promotion un-completes it.
+            // Group membership decides, whatever the record says.
             return await probes.isMemberOfAdminGroup(user) ? .suggested : .completed
         }
     }

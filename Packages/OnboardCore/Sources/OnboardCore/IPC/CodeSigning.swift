@@ -1,11 +1,10 @@
 import Foundation
 import Security
 
-/// Code-signing identity helpers for mutual XPC verification.
-/// Both sides require the peer to be signed by the *same Team ID as
-/// themselves*, derived at runtime — no hardcoded identities in the repo.
+/// Code-signing checks for XPC. Each side requires its peer to have the same
+/// Team ID as itself, read at runtime.
 public enum CodeSigning {
-    /// The current process's Team ID, or nil for unsigned/ad-hoc builds.
+    /// This process's Team ID; nil for unsigned builds.
     public static func currentTeamIdentifier() -> String? {
         var codeRef: SecCode?
         guard SecCodeCopySelf([], &codeRef) == errSecSuccess, let codeRef else { return nil }
@@ -17,14 +16,9 @@ public enum CodeSigning {
         return info[kSecCodeInfoTeamIdentifier as String] as? String
     }
 
-    /// Requirement string for the XPC peer: Apple-issued chain, the same Team
-    /// ID as this process, and one of our two signing identifiers.
-    ///
-    /// The identifiers are listed explicitly on purpose. `identifier` takes an
-    /// exact match — a trailing `*` is compared literally, not as a wildcard —
-    /// so the prefix form this used to carry rejected *both* sides of the
-    /// connection as soon as the build was signed. Ad-hoc builds have no Team
-    /// ID and skip the check, which is why it went unnoticed until M3.
+    /// Requirement for the XPC peer: Apple-issued certificate, this process's
+    /// Team ID, and the app's or the daemon's signing identifier.
+    /// `identifier` matches exactly; it takes no wildcards.
     public static func peerRequirement(teamIdentifier: String) -> String {
         """
         anchor apple generic \

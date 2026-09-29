@@ -1,39 +1,30 @@
 import Foundation
 
-/// The two operations onboarding cannot do as the user: putting a downloaded
-/// wallpaper into root-owned `/Library`, and editing the admin group. The
-/// daemon implements this over XPC; tests and the demo use fakes.
-///
-/// Deliberately narrow: the caller passes item ids and indexes, never URLs or
-/// usernames — the daemon resolves both from its *own* config and console
-/// user, so a compromised caller cannot fetch arbitrary URLs as root or
-/// demote arbitrary accounts.
+/// The two onboarding operations that need root, performed by the daemon:
+/// storing a downloaded wallpaper and removing admin membership. Callers pass
+/// only an item id and index; the daemon resolves the URL and user itself.
 public protocol OnboardingRootServicing: Sendable {
-    /// Ensures the item's source `sourceIndex` exists at its shared local
-    /// destination; returns that path.
+    /// Makes the item's source available locally; returns its path.
     func fetchWallpaper(itemID: String, sourceIndex: Int) async throws -> String
-    /// Removes the console user from the admin group, honouring the item's
-    /// exclude list. Returns false when no demotion was needed.
+    /// Removes the console user from the admin group unless excluded.
+    /// Returns false when no change was needed.
     func demoteConsoleUser(itemID: String) async throws -> Bool
 }
 
-/// Everything the onboarding actions need, injectable for tests — the onboarding
-/// counterpart of `ActionContext`.
+/// Dependencies for onboarding actions; injectable for tests.
 public struct OnboardingActionContext: Sendable {
     public var runner: any ProcessRunning
-    /// Bundled helper binaries (Contents/Helpers in the app).
+    /// Bundled tools in Contents/Helpers.
     public var desktopprPath: String
     public var dockutilPath: String
     public var utilutiPath: String
     public var rootService: any OnboardingRootServicing
     public var fileExists: @Sendable (String) -> Bool
-    /// App path for a bundle id (Launch Services in the live wiring).
+    /// App path for a bundle id.
     public var applicationPath: @Sendable (String) -> String?
-    /// Launches an open-step target; true when launch succeeded.
+    /// Opens an `open` target; true on success.
     public var openTarget: @Sendable (OnboardingItem.OpenTarget) async -> Bool
-    /// App paths already in this user's Dock. The `add` action consults it
-    /// first: dockutil exits non-zero on a duplicate, and an app the user
-    /// already has is the desired end state, not a failure.
+    /// App paths in the user's Dock; items already present are not added again.
     public var currentDockItems: @Sendable () async -> [String]
     public var sleep: @Sendable (Duration) async -> Void
 
@@ -62,8 +53,8 @@ public struct OnboardingActionContext: Sendable {
     }
 }
 
-/// The five kinds, behaving per Docs/Onboarding-Behaviour.md. Runs as the
-/// signed-in user; only the root protocol leaves the process.
+/// Performs onboarding steps as the signed-in user. See
+/// Docs/Onboarding-Behaviour.md.
 public struct OnboardingActionRunner: OnboardingActing {
     private let context: OnboardingActionContext
 
@@ -77,7 +68,6 @@ public struct OnboardingActionRunner: OnboardingActing {
         }
         switch item.kind {
         case .message:
-            // Nothing to do: seeing the step is the step.
             return ItemRecord(outcome: .success, status: .done)
         case .wallpaper(let spec):
             return await wallpaper(item: item, spec: spec, choice: choice)
@@ -119,15 +109,12 @@ public struct OnboardingActionRunner: OnboardingActing {
 
         switch source {
         case .path:
-            // An absent local file is a skip, not a failure: "no wallpaper
-            // configured locally" is a normal state (behaviour spec).
+            // A missing local file is skipped.
             guard context.fileExists(destination) else {
                 return ItemRecord(outcome: .skipped, status: .notNeeded, message: "wallpaper file not present")
             }
         case .remote:
-            // The daemon downloads (or has pre-fetched) into the shared
-            // location. A failed download is a real failure — it was asked
-            // for and didn't happen.
+            // Downloaded by the daemon; a failed download fails the step.
             if !context.fileExists(destination) {
                 do {
                     _ = try await context.rootService.fetchWallpaper(itemID: item.id, sourceIndex: index)
@@ -167,7 +154,7 @@ public struct OnboardingActionRunner: OnboardingActing {
             return ItemRecord(outcome: .skipped, status: .notNeeded)
         }
 
-        // Give provisioning time to finish installing apps the Dock lists.
+        // Wait for listed apps that provisioning is still installing.
         if spec.waitForItemsTimeout > 0 {
             let deadline = Date.now.addingTimeInterval(TimeInterval(spec.waitForItemsTimeout))
             while Date.now < deadline, !spec.items.allSatisfy(itemPresent) {
@@ -180,18 +167,11 @@ public struct OnboardingActionRunner: OnboardingActing {
             problems.append("could not empty the Dock")
         }
 
-        // Read the Dock after any --remove, so `replace` sees the empty one it
-        // just made and re-adds everything.
+        // Read after any removal, so `replace` adds every item back.
         let present = Set(await context.currentDockItems())
 
-        // Missing items are skipped, not failed — it is what prevents
-        // question-mark Dock icons and makes listing not-everywhere apps safe.
-        //
-        // So is an item the user already has. dockutil exits non-zero rather
-        // than duplicate an entry, and counting that as a failure marked the
-        // whole step failed for a Dock that ended up exactly as configured —
-        // which is what listing a default app like Apps.app or System
-        // Settings did on hardware.
+        // Skip items that are not installed or are already in the Dock;
+        // dockutil fails on duplicates.
         var added = 0, skipped = 0
         for item in spec.items {
             guard let path = resolvedDockPath(item) else {
@@ -209,8 +189,7 @@ public struct OnboardingActionRunner: OnboardingActing {
             }
         }
 
-        // One restart after all edits, and only this user's Dock — which is
-        // what `killall` scoped to our own uid does.
+        // One restart, after all changes. `killall` affects only this user's Dock.
         if spec.restartDock {
             _ = try? await context.runner.run(
                 executable: "/usr/bin/killall",
@@ -221,8 +200,6 @@ public struct OnboardingActionRunner: OnboardingActing {
             )
         }
 
-        // The message names what actually went wrong. It used to repeat the
-        // counts, which read as a failure report on a Dock that was fine.
         let detail = ["added": added, "skipped": skipped]
         return problems.isEmpty
             ? ItemRecord(outcome: .success, status: .done, detail: detail)
@@ -233,8 +210,7 @@ public struct OnboardingActionRunner: OnboardingActing {
         resolvedDockPath(item) != nil
     }
 
-    /// `bundleid:` entries resolve through the item icon convention; plain
-    /// entries are paths. nil = not on this Mac (→ skipped).
+    /// The item's path, resolving `bundleid:` entries; nil if not installed.
     private func resolvedDockPath(_ item: String) -> String? {
         if item.hasPrefix("bundleid:") {
             let bundleID = String(item.dropFirst("bundleid:".count))
@@ -256,11 +232,7 @@ public struct OnboardingActionRunner: OnboardingActing {
     // MARK: - defaultApps
 
     private func defaultApps(spec: OnboardingItem.DefaultAppsSpec, choice: StepChoice?) async -> ItemRecord {
-        // Targets whose candidates are all absent from this Mac are skipped,
-        // not failed — an absent app can't be chosen, and failing the step
-        // over it would punish the user for the deployment's timing. The same
-        // skip-missing philosophy as the dock items. Installed = Launch
-        // Services knows a path for the bundle id.
+        // Skip targets with no installed candidate.
         let actionable = spec.targets.filter { _, candidates in
             candidates.contains { context.applicationPath($0) != nil }
         }
@@ -268,9 +240,7 @@ public struct OnboardingActionRunner: OnboardingActing {
             return ItemRecord(outcome: .skipped, status: .notNeeded, message: "none of the configured apps are installed")
         }
 
-        // The UI sends every target's pick; scalar confirmations seed sole
-        // *installed* candidates. Anything unpicked here is a config/UI
-        // inconsistency.
+        // Single installed candidates need no choice from the UI.
         var picks: [String: String] = [:]
         if case .defaultApps(let chosen) = choice { picks = chosen }
         for (target, candidates) in actionable where picks[target.key] == nil {
@@ -283,11 +253,8 @@ public struct OnboardingActionRunner: OnboardingActing {
 
         for (target, _) in actionable {
             guard let bundleID = picks[target.key] else { continue }
-            // utiluti's real subcommands, from the vendored binary's help
-            // after hardware returned EX_USAGE (64) on the guessed spelling:
-            //   utiluti url set <scheme> <bundleID>
-            //   utiluti type set <identifier> <bundleID>
-            // The browser is the http scheme.
+            //   utiluti url set <scheme> <bundleID>    (browser: http)
+            //   utiluti type set <uti> <bundleID>
             let arguments: [String] = switch target {
             case .browser: ["url", "set", "http", bundleID]
             case .scheme(let scheme): ["url", "set", scheme, bundleID]
@@ -302,8 +269,7 @@ public struct OnboardingActionRunner: OnboardingActing {
                     lineHandler: nil
                 )
                 guard result.exitCode == 0 else {
-                    // Includes the user refusing macOS's confirmation prompt:
-                    // retryable, and the message says which target.
+                    // Includes the user declining the macOS prompt; retryable.
                     return ItemRecord(
                         outcome: .failed,
                         status: .awaitingUser,

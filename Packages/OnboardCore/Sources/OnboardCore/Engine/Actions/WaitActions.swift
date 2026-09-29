@@ -1,6 +1,6 @@
 import Foundation
 
-/// Fixed pause. The configured seconds double as the timeout.
+/// A fixed pause. `seconds` is also the timeout.
 enum WaitAction {
     static func run(seconds: Int, timeout: Int, context: ActionContext) async -> ActionResult {
         await context.sleep(.seconds(min(seconds, timeout)))
@@ -8,7 +8,7 @@ enum WaitAction {
     }
 }
 
-/// Polls until a path exists (or is absent), up to the timeout.
+/// Waits until a path exists (or is absent), up to the timeout.
 enum WaitForPathAction {
     static let pollInterval = Duration.seconds(2)
 
@@ -25,7 +25,7 @@ enum WaitForPathAction {
             }
             await context.sleep(pollInterval)
         }
-        // Final check so a satisfied condition right at the deadline counts.
+        // One last check at the deadline.
         if satisfied(path: path, condition: condition, context: context) {
             return ActionResult(outcome: .success, status: .done)
         }

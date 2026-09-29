@@ -1,16 +1,14 @@
 import Foundation
 
-/// Runs the provisioning stage: executes its items in order, persists state after
-/// every transition, mirrors progress for the UI, and writes the device
-/// completion marker per MarkerLogic.
+/// Runs provisioning items in order, saves state after every change,
+/// publishes progress, and writes the completion marker.
 public actor ProvisioningEngine {
     public struct Result: Sendable, Equatable {
         public let markerWritten: Bool
         public let failedRequiredIDs: [String]
-        /// True for a `DEBUG` dry run: nothing executed, nothing persisted.
+        /// A dry run: nothing executed or saved.
         public let dryRun: Bool
-        /// 0 when the marker was written, 30 otherwise. A dry run exits 0 —
-        /// nothing really failed; the withheld marker is its normal outcome.
+        /// 0 when the marker was written or for a dry run; 30 otherwise.
         public var exitCode: ExitCode {
             markerWritten || dryRun ? .success : .completedWithErrors
         }
@@ -31,28 +29,14 @@ public actor ProvisioningEngine {
     private var statusTexts: [String: String] = [:]
     private var currentItemID: String?
 
-    /// How many times a failed item is re-executed without being asked.
-    ///
-    /// launchd re-spawns the daemon on demand (MachServices) and the card
-    /// polls every second, so a failed run is picked up again within seconds
-    /// — which is how a Mac heals itself during Setup Assistant when the
-    /// fault was transient. Unbounded, the same mechanism re-downloads and
-    /// re-installs every 15 seconds or so for a fault that is not going to
-    /// clear. Three attempts keeps the recovery and drops the storm; the
-    /// Retry button clears the count, because a person asking for it has
-    /// usually just fixed something.
+    /// Automatic attempts per failed item. The daemon is restarted within
+    /// seconds while a window polls it, which retries transient failures;
+    /// the limit stops persistent ones from repeating. Try again resets it.
     public static let maxAutomaticAttempts = 3
 
-    /// Whether another run could still change anything by itself.
-    ///
-    /// False once every item is terminal and each failed one is out of
-    /// attempts. The daemon asks before doing anything, because launchd
-    /// re-spawns it every few seconds for as long as a card is polling: with
-    /// nothing left to attempt, each spawn still renamed the Mac, re-ran
-    /// preflight and republished "checking this Mac…", which wiped the Try
-    /// again and Continue anyway buttons off the card about once every ten
-    /// seconds. The item cap alone did not stop that — it only stopped the
-    /// item being re-executed.
+    /// Whether a new run could change anything without Try again: false
+    /// once every enabled item has succeeded, been skipped, or failed the
+    /// maximum number of times.
     public static func hasAutomaticWorkRemaining(
         items: [ProvisioningItem],
         records: [String: ItemRecord]
@@ -66,8 +50,7 @@ public actor ProvisioningEngine {
             case .failed:
                 if record.attempts < maxAutomaticAttempts { return true }
             case .pending, .running:
-                // `running` means a previous daemon died mid-item; that is
-                // unfinished work, not a verdict.
+                // The previous daemon exited during the item.
                 return true
             }
         }
@@ -85,9 +68,7 @@ public actor ProvisioningEngine {
         self.store = store
         self.context = context
         self.onProgress = onProgress
-        // A dry run starts blank on purpose: leftover records from a real
-        // partial run would make items skip, and the point of DEBUG is to
-        // watch every item go by.
+        // A dry run starts empty so every item is shown.
         var loaded = configuration.dryRun
             ? DeviceState()
             : (try? store.loadDeviceState() ?? nil) ?? DeviceState()
@@ -99,14 +80,13 @@ public actor ProvisioningEngine {
         self.state = loaded
     }
 
-    /// Idempotent: already-terminal success/skipped items are never redone;
-    /// failed and unfinished items are retried (§4 marker semantics).
+    /// Skips items that succeeded or were skipped; runs the rest.
     public func run() async -> Result {
         let items = configuration.provisioning?.items ?? []
         state.lastRunAt = .now
         persist(engineState: .running)
 
-        // Wire the shared status-text handler to the item currently running.
+        // Route `status:` lines to the running item.
         var itemContext = context
         itemContext.statusTextHandler = { [weak self] text in
             Task { await self?.recordStatusText(text) }
@@ -121,19 +101,13 @@ public actor ProvisioningEngine {
                 setRecord(for: item.id, ItemRecord(outcome: .skipped, status: .notNeeded))
                 continue
             }
-            // Out of automatic attempts: leave the failure standing, exactly
-            // as recorded, so the card still reports it and the marker stays
-            // withheld. Only an explicit retry starts it over.
+            // Attempts exhausted: keep the failure until Try again.
             if let previous, previous.outcome == .failed, previous.attempts >= Self.maxAutomaticAttempts {
                 log("item \(item.id): failed \(previous.attempts) times, not retrying automatically — use Try again")
                 continue
             }
-            // A `.running` record means a previous daemon died mid-item —
-            // launchd re-spawns us within seconds, so an item that takes the
-            // daemon down with it would otherwise re-run forever: the cap
-            // above only ever saw clean failures. Out of attempts, the
-            // interruption *is* the verdict; record it as the failure it was,
-            // or the card shows a spinner for the life of the settled run.
+            // Interrupted (the daemon exited mid-item) as many times as the
+            // limit allows: record it as failed.
             if let previous, previous.outcome == .running, previous.attempts >= Self.maxAutomaticAttempts {
                 log("item \(item.id): interrupted \(previous.attempts) times, not retrying automatically — use Try again")
                 setRecord(for: item.id, ItemRecord(
@@ -156,9 +130,9 @@ public actor ProvisioningEngine {
 
             let result: ActionResult
             if configuration.dryRun {
-                // DEBUG dry run: pace like work is happening, execute nothing.
+                // Dry run: wait briefly, execute nothing.
                 await itemContext.sleep(.seconds(2))
-                result = ActionResult(outcome: .success, status: .done, message: "DEBUG — not executed")
+                result = ActionResult(outcome: .success, status: .done, message: "dry run — not executed")
             } else {
                 result = await ProvisioningActionRunner.execute(item, context: itemContext)
             }
@@ -175,8 +149,7 @@ public actor ProvisioningEngine {
 
         let requiredIDs = items.filter(\.required).map(\.id)
         let markerEligible = MarkerLogic.markerEligible(requiredIDs: requiredIDs, records: state.items)
-        // The device marker is the one thing a dry run must never produce:
-        // it is what makes provisioning "done" forever.
+        // Never written by a dry run.
         if markerEligible, state.completedAt == nil, !configuration.dryRun {
             state.completedAt = .now
         }
@@ -196,9 +169,7 @@ public actor ProvisioningEngine {
 
     // MARK: - Internals
 
-    /// Both destinations, always: the unified log for `log stream`, and the
-    /// context's sink for `onboard.log` — the one the ⌘L panel can read
-    /// during Setup Assistant.
+    /// Logs to the unified log and to `onboard.log`.
     private func log(_ message: String) {
         OnboardLog.daemon.notice("\(message, privacy: .public)")
         context.logSink?(message)
@@ -224,9 +195,7 @@ public actor ProvisioningEngine {
     }
 
     private func persist(engineState: ProgressSnapshot.EngineState) {
-        // A dry run keeps its records in memory only: nothing on disk may
-        // outlive it. Progress still publishes (below) — that is rendering,
-        // not state.
+        // A dry run saves nothing; progress is still published.
         if !configuration.dryRun {
             do {
                 try store.saveDeviceState(state)

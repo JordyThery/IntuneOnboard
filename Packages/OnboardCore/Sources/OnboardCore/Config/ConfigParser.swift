@@ -1,9 +1,7 @@
 import Foundation
 
-/// Parses a raw plist dictionary into `Configuration`, collecting every
-/// problem instead of stopping at the first. Structural validation that
-/// needs the whole tree (duplicate ids, unreachable combinations) lives in
-/// `ConfigValidator`; this file covers shape and per-value rules.
+/// Parses a plist dictionary into a `Configuration`, collecting all errors.
+/// Checks that need the whole tree are in `ConfigValidator`.
 public enum ConfigParser {
     public static func parse(_ root: [String: Any]) -> (configuration: Configuration?, errors: [ConfigError]) {
         let collector = PlistDecoder.ErrorCollector()
@@ -29,11 +27,8 @@ public enum ConfigParser {
             logging: parseLogging(decoder.child("logging"))
         )
 
-        // The unknown-key audit only speaks when the parse is otherwise
-        // clean: a failed parse leaves keys legitimately unread, and audit
-        // noise would bury the real error. On a clean parse an unread key is
-        // a hard error, because it is invisible any other way — the profile
-        // loads, the key does nothing, and nobody is told.
+        // Unread keys are reported only when parsing otherwise succeeded;
+        // a failed parse leaves keys unread legitimately.
         var errors = collector.errors
         if errors.isEmpty { errors = collector.unknownKeyErrors }
         return (errors.isEmpty ? configuration : nil, errors)
@@ -143,8 +138,7 @@ public enum ConfigParser {
     private static func parseProvisioning(_ decoder: PlistDecoder?) -> Configuration.Provisioning? {
         guard let decoder else { return nil }
 
-        // Validated at parse time: a typo in a token would otherwise name a
-        // whole fleet wrong before anyone noticed.
+        // Validated here so a misspelled token rejects the profile.
         var template: NameTemplate?
         if let raw = decoder.string("deviceNameTemplate") {
             do {
@@ -268,9 +262,7 @@ public enum ConfigParser {
         )
     }
 
-    /// `left`/`right` are real reference values we deliberately don't
-    /// implement, so they fail loudly rather than silently behaving as
-    /// `center` — a profile asking for a layout it won't get should say so.
+    /// Unsupported values are errors rather than falling back to `center`.
     private static func parseWindowPosition(_ decoder: PlistDecoder) -> Configuration.Onboarding.WindowPosition {
         guard let raw = decoder.string("windowPosition") else { return .center }
         guard let position = Configuration.Onboarding.WindowPosition(rawValue: raw) else {
@@ -286,8 +278,7 @@ public enum ConfigParser {
         return position
     }
 
-    /// An open target: app path, `bundleid:`, or any URL with a scheme —
-    /// shared by the `open` kind and `launchOnCompletion`.
+    /// An app path, `bundleid:` or URL. Used by `open` and `launchOnCompletion`.
     private static func parseOpenTarget(
         _ raw: String,
         decoder: PlistDecoder,
@@ -318,8 +309,7 @@ public enum ConfigParser {
         case "message":
             kind = .message
         case "wallpaper":
-            // `source` is a string or an array: scalar means confirm/apply,
-            // array means the user picks from a grid.
+            // A string or an array; an array lets the user choose.
             if !decoder.has("source") {
                 decoder.errors.add(ConfigError(path: "\(decoder.path).source", kind: .missingKey))
                 kind = nil
@@ -348,8 +338,7 @@ public enum ConfigParser {
                 kind = nil
             }
         case "dock":
-            // `dockStrategy`: keep/add/replace, scalar or array (array =
-            // the user chooses). Default add.
+            // keep, add or replace; a string or an array. Default add.
             var strategies: [OnboardingItem.DockStrategy] = [.add]
             if let raws = decoder.strings("dockStrategy") {
                 let parsed = raws.compactMap { OnboardingItem.DockStrategy(rawValue: $0) }

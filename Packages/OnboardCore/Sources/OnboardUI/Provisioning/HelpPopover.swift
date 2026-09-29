@@ -3,11 +3,8 @@ import CoreImage.CIFilterBuiltins
 import OnboardCore
 import SwiftUI
 
-/// The circled question mark in the lower right, and what it opens.
-///
-/// The URL is shown as a QR code rather than a link because of where this
-/// appears: during Setup Assistant there is no browser, no signed-in user and
-/// often no way to type anything useful — but everybody has a phone.
+/// The help button and its popover. The URL is shown as a QR code, since
+/// no browser is available during Setup Assistant.
 struct HelpPopover: View {
     let help: Configuration.Help
 
@@ -20,7 +17,7 @@ struct HelpPopover: View {
             }
 
             if let message = help.message?.resolved() {
-                // Markdown: a help message wants a bold phone number.
+                // Markdown is rendered.
                 Text(LocalizedStringKey(message))
                     .font(.callout)
                     .multilineTextAlignment(.center)
@@ -50,8 +47,7 @@ struct HelpPopover: View {
 }
 
 enum QRCode {
-    /// Renders at the natural QR size then scales up with no smoothing, so
-    /// the modules stay crisp and scannable.
+    /// Scaled without smoothing, so the code stays sharp.
     static func image(for url: URL, side: CGFloat) -> NSImage? {
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(url.absoluteString.utf8)

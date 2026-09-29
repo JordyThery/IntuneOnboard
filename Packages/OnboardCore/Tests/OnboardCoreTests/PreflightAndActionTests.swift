@@ -18,7 +18,7 @@ import Testing
         )])
         let preflight = Preflight(uid: { 0 }, processRunner: enrolled, probe: { _, _ in true })
         let config = Configuration(requireADE: true)
-        // Should not throw.
+        // Does not throw.
         try? await preflight.run(configuration: config)
         #expect(await preflight.isADEEnrolled())
 
@@ -44,15 +44,14 @@ import Testing
             try await allDown.run(configuration: config)
         }
 
-        // Warn URL down, required up → no throw.
+        // Warn URL down, required URL up: no error.
         let warnDown = Preflight(uid: { 0 }, probe: { url, _ in !url.absoluteString.contains("warn") })
         try await warnDown.run(configuration: config)
     }
 }
 
 @Suite struct ScriptActionTests {
-    /// Real subprocess integration: inline script through /bin/zsh with
-    /// status: lines and a non-zero exit accepted via successExitCodes.
+    /// An inline script with `status:` lines and an accepted non-zero exit.
     @Test func inlineScriptRunsAndEmitsStatus() async throws {
         let collected = StatusCollector()
         let context = ActionContext(
@@ -80,10 +79,7 @@ import Testing
         #expect(result.message?.contains("oops") == true)
     }
 
-    /// A root script's output is the only account of what it did, and the
-    /// ⌘L panel reads `onboard.log` — not the unified log. Both streams have
-    /// to reach the sink, tagged with the item, or a script that misbehaves
-    /// during Setup Assistant leaves no trace anyone on the Mac can read.
+    /// stdout and stderr reach the run log, tagged with the item id.
     @Test func scriptOutputReachesTheRunLog() async {
         let collected = StatusCollector()
         let context = ActionContext(
@@ -142,10 +138,9 @@ import Testing
         #expect(result.message?.contains("symbolic links") == true)
     }
 
-    /// The check-then-execute fix reads the script through the descriptor
-    /// that was verified, so what was checked is what runs. `requiredOwner`
-    /// lets the test exercise the pipeline without a root-owned fixture; the
-    /// mode and symlink rules are the production ones.
+    /// `verifiedContent` returns the verified file's contents and applies
+    /// the ownership and mode rules. `requiredOwner` avoids needing a
+    /// root-owned fixture.
     @Test func verifiedContentReadsWhatItChecked() throws {
         let directory = FileManager.default.temporaryDirectory
         let file = directory.appending(path: "vc-\(UUID().uuidString).sh")
@@ -158,24 +153,22 @@ import Testing
 
         #expect(ScriptAction.verifiedContent(of: file.path, requiredOwner: getuid())
                 == .success(Data("echo hello".utf8)))
-        // Wrong owner (root won't own a file this test just made).
+        // Not owned by root.
         if case .failure(let reason) = ScriptAction.verifiedContent(of: file.path) {
             #expect(reason == "not owned by root")
         } else {
             Issue.record("a user-owned file must not verify against the root requirement")
         }
-        // Group-writable is refused even for the right owner.
+        // Group-writable is rejected.
         try FileManager.default.setAttributes([.posixPermissions: 0o770], ofItemAtPath: file.path)
         #expect(ScriptAction.verifiedContent(of: file.path, requiredOwner: getuid())
                 == .failure("group/world-writable"))
     }
 
-    /// stderr used to be read only after exit, so a child writing more than
-    /// the pipe's ~64 KB buffer blocked on write, could never exit, and was
-    /// reported as a timeout. `set -x` alone produces that much.
+    /// More than 64 KB on stderr does not block the script.
     @Test func chattyStderrScriptStillSucceeds() async {
         let context = ActionContext(processRunner: LiveProcessRunner(), sleep: { _ in })
-        // ~200 KB to stderr, then a clean exit.
+        // About 200 KB to stderr, then exit 0.
         let spec = ProvisioningItem.ScriptSpec(source: .inline("""
         for i in {1..2000}; do
             printf '%0100d\\n' "$i" >&2
@@ -187,8 +180,7 @@ import Testing
         #expect(result.outcome == .success, "\(result.message ?? "")")
     }
 
-    /// A final `status:` line without a trailing newline still reaches the
-    /// handler — flushed at stdout EOF.
+    /// A final `status:` line without a newline is delivered.
     @Test func unterminatedFinalStatusLineIsFlushed() async {
         let collected = StatusCollector()
         let context = ActionContext(
@@ -202,10 +194,8 @@ import Testing
         #expect(collected.lines() == ["almost"])
     }
 
-    /// A script that exits leaving a background child holding the pipes open
-    /// keeps EOF from ever arriving — the drain must be bounded, or the item
-    /// hangs for as long as the grandchild lives. The run should return
-    /// shortly after the parent exits, with the output it produced intact.
+    /// A background child holding the pipes open does not delay the result
+    /// beyond the bounded wait.
     @Test func backgroundChildHoldingThePipeDoesNotHangTheRun() async throws {
         let started = ContinuousClock.now
         let result = try await LiveProcessRunner().run(
@@ -222,9 +212,7 @@ import Testing
                 "must return on the bounded EOF wait, not the grandchild's lifetime")
     }
 
-    /// A timeout must take the process *tree*, not just the interpreter:
-    /// killing only zsh left its children — a hung curl, an installer —
-    /// running as root after the item was recorded failed.
+    /// A timeout also terminates child processes.
     @Test func timeoutKillsTheWholeProcessTree() async throws {
         let result = try await LiveProcessRunner().run(
             executable: "/bin/zsh",
@@ -240,7 +228,7 @@ import Testing
             .first { $0.hasPrefix("child:") })
         let childPID = try #require(pid_t(line.dropFirst("child:".count)))
 
-        // SIGTERM delivery is asynchronous; give it a moment.
+        // Signals are delivered asynchronously.
         var alive = true
         for _ in 0..<20 where alive {
             alive = kill(childPID, 0) == 0

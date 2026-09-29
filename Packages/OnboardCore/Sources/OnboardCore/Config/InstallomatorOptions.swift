@@ -1,12 +1,10 @@
 import Foundation
 
-/// Installomator option handling. Because Installomator `eval`s every
-/// `KEY=value` argument, options are allowlisted by shape, `DEBUG=` is never
-/// accepted from config, and `DEBUG=0` is always appended last so no earlier
-/// option can re-enable dry-run mode (last assignment wins).
+/// Installomator options. Installomator `eval`s each `KEY=value` argument, so
+/// options are restricted by shape, `DEBUG` is rejected, and `DEBUG=0` is
+/// appended last (the last assignment wins).
 public enum InstallomatorOptions {
-    /// Options suited to unattended bootstrap — silent, non-blocking,
-    /// forced — the default `defaultOptions`.
+    /// Default `defaultOptions`: silent, non-blocking, forced.
     public static let bootstrapDefaults = [
         "NOTIFY=silent",
         "BLOCKING_PROCESS_ACTION=ignore",
@@ -15,20 +13,16 @@ public enum InstallomatorOptions {
         "LOGGING=REQ",
     ]
 
-    /// Nil when the option is acceptable, otherwise the reason.
+    /// nil if acceptable, otherwise the reason.
     ///
-    /// A bare value may not contain a space: Installomator's `eval` parses
-    /// `KEY=a b` as the assignment `KEY=a` followed by the *command* `b`, so
-    /// an unquoted space silently turned part of an option into code running
-    /// as root. A value that needs spaces (a LOGO path, say) must arrive
-    /// quoted — `LOGO="/Library/Application Support/x.png"` — which `eval`
-    /// reads back as one assignment. The quoted form still excludes the
-    /// characters that would end the quote or expand inside it.
+    /// Unquoted values may not contain spaces: `eval` would run the text after
+    /// a space as a command. Values with spaces must be quoted, and quoted
+    /// values may not contain characters that end or expand within the quote.
     public static func violation(of option: String) -> ConfigError.OptionViolation? {
         if option.hasPrefix("DEBUG=") || option == "DEBUG" {
             return .debugForbidden
         }
-        // Regexes aren't Sendable, so the literals live here rather than in statics.
+        // Regex literals are not Sendable, so they cannot be static.
         let bareShape = /^[A-Z_]+=[A-Za-z0-9_.,:\/@-]*$/
         let quotedShape = /^[A-Z_]+="[A-Za-z0-9_.,:\/@ -]*"$/
         guard option.wholeMatch(of: bareShape) != nil
@@ -38,8 +32,7 @@ public enum InstallomatorOptions {
         return nil
     }
 
-    /// Item options are appended after the defaults (later assignments win in
-    /// Installomator), and `DEBUG=0` is forced last.
+    /// Defaults, then item options, then `DEBUG=0`.
     public static func effectiveArguments(defaults: [String], itemOptions: [String]) -> [String] {
         defaults + itemOptions + ["DEBUG=0"]
     }

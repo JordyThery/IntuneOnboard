@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 public enum Hashing {
-    /// Streaming SHA-256 of a file, lowercase hex.
+    /// SHA-256 of a file, as lowercase hex.
     public static func sha256(of fileURL: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: fileURL)
         defer { try? handle.close() }

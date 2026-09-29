@@ -1,8 +1,8 @@
 import Foundation
 
-/// The daemon's externally visible state, served over XPC and mirrored to a
-/// root-owned, world-readable progress.json so a UI that starts late (or
-/// restarts after Await Final Configuration kills the session) can recover.
+/// Provisioning progress, served over XPC and written to `progress.json`
+/// (root-owned, world-readable) for UIs that start while the daemon is not
+/// running.
 public struct ProgressSnapshot: Codable, Equatable, Sendable {
     public enum EngineState: String, Codable, Sendable {
         case waitingForConfig
@@ -17,9 +17,9 @@ public struct ProgressSnapshot: Codable, Equatable, Sendable {
         public let id: String
         public let outcome: ItemOutcome
         public let status: StatusKind
-        /// Optional numeric detail (e.g. dock "added"/"skipped" counts).
+        /// Counts, e.g. Dock "added" and "skipped".
         public let detail: [String: Int]
-        /// Free-text status line (script `status:` output); UI shows verbatim.
+        /// Text from a script's `status:` line.
         public let statusText: String?
 
         public init(id: String, outcome: ItemOutcome, status: StatusKind, detail: [String: Int] = [:], statusText: String? = nil) {
@@ -35,16 +35,11 @@ public struct ProgressSnapshot: Codable, Equatable, Sendable {
     /// In configuration order.
     public let items: [Item]
     public let updatedAt: Date
-    /// When this run began, for the elapsed time in "About this Mac".
-    /// Optional because older `progress.json` files predate it.
+    /// When the run started. Absent in older files.
     public let startedAt: Date?
-    /// This Mac may not be configured at all — `requireADE` is set and the
-    /// Mac was not enrolled through Automated Device Enrollment.
-    ///
-    /// Carried separately from `engineState` because the two failures that
-    /// reach `preflightFailed` mean different things to the user session: an
-    /// unreachable endpoint stops provisioning but leaves onboarding worth
-    /// doing, while an ineligible Mac must not be touched by either stage.
+    /// `requireADE` is set and the Mac was not enrolled through ADE. Separate
+    /// from `engineState`: unlike other preflight failures, it also rules out
+    /// onboarding.
     public let ineligible: Bool
 
     public init(
@@ -61,8 +56,7 @@ public struct ProgressSnapshot: Codable, Equatable, Sendable {
         self.ineligible = ineligible
     }
 
-    /// Hand-written so `ineligible` can be absent from a progress.json the
-    /// running daemon has not rewritten yet.
+    /// Tolerates a missing `ineligible` key.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         engineState = try container.decode(EngineState.self, forKey: .engineState)
@@ -72,13 +66,7 @@ public struct ProgressSnapshot: Codable, Equatable, Sendable {
         ineligible = try container.decodeIfPresent(Bool.self, forKey: .ineligible) ?? false
     }
 
-    /// Builds a snapshot for `itemIDs` in configuration order, carrying
-    /// whatever `records` already knows about each one.
-    ///
-    /// The daemon used to fabricate `.pending` rows here. Because launchd
-    /// re-spawns it on demand, a finished device got a fresh daemon that
-    /// published `.completed` over the real progress — and the UI showed
-    /// "Your Mac is ready" above "0 of 4 complete".
+    /// A snapshot for `itemIDs`, in order, with the existing records.
     public static func make(
         engineState: EngineState,
         itemIDs: [String],
@@ -127,7 +115,7 @@ public struct ProgressSnapshot: Codable, Equatable, Sendable {
                 withIntermediateDirectories: true
             )
             try data.write(to: url, options: .atomic)
-            // World-readable: the user-session UI reads it without privileges.
+            // World-readable, for the user-session UI.
             try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path)
         } catch {
             OnboardLog.daemon.error("progress.json write failed: \(error.localizedDescription, privacy: .public)")

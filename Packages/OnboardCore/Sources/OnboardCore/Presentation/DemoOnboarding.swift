@@ -1,11 +1,7 @@
 import Foundation
 
-/// An in-memory Mac for `--demo onboarding`: the probes read it, the actions
-/// mutate it, so the whole onboarding flow — picking, confirming, un-completing —
-/// is fully interactive while nothing on the real system changes.
-///
-/// It starts in the state a fresh first login would find: default wallpaper,
-/// Safari everywhere, the user still an admin.
+/// An in-memory Mac for `--demo onboarding`. Starts as a new login would find
+/// it: default wallpaper, Safari as default, the user an admin.
 public final class DemoOnboardingWorld: @unchecked Sendable {
     private let lock = NSLock()
     private var wallpaper: String? = "/System/Library/CoreServices/DefaultDesktop.heic"
@@ -15,11 +11,9 @@ public final class DemoOnboardingWorld: @unchecked Sendable {
 
     public init() {}
 
-    /// A fresh Mac's Dock, more or less — real system apps so the preview
-    /// shows real icons.
+    /// A typical new Dock, using real system apps for real icons.
     private var dock: [String] = [
-        // Safari lives in /Applications, not /System/Applications — the wrong
-        // path rendered as a placeholder tile in the preview.
+        // Safari is in /Applications, not /System/Applications.
         "/Applications/Safari.app",
         "/System/Applications/Messages.app",
         "/System/Applications/Mail.app",
@@ -46,8 +40,7 @@ public final class DemoOnboardingWorld: @unchecked Sendable {
     fileprivate func touch(_ path: String) { lock.withLock { _ = files.insert(path) } }
 }
 
-/// Scripted actions: a short pause for realism, then the world changes the way
-/// the real action would change the Mac.
+/// Demo actions: a short pause, then the in-memory Mac changes.
 public struct DemoOnboardingActions: OnboardingActing {
     private let world: DemoOnboardingWorld
 
@@ -92,7 +85,7 @@ public struct DemoOnboardingActions: OnboardingActing {
             if case .defaultApps(let picks) = choice {
                 for (key, bundleID) in picks { world.setDefault(key, to: bundleID) }
             } else {
-                // Confirmation of scalar values: apply the sole candidates.
+                // Single values: apply the only candidates.
                 for (target, candidates) in spec.targets {
                     if let only = candidates.first, candidates.count == 1 {
                         world.setDefault(target.key, to: only)
@@ -102,7 +95,7 @@ public struct DemoOnboardingActions: OnboardingActing {
             return ItemRecord(outcome: .success, status: .done)
 
         case .open:
-            // The demo pretends the opened app eventually creates its receipt.
+            // The opened app is assumed to create its validatePath.
             if let path = item.validatePath {
                 world.touch(path)
             }
@@ -116,9 +109,8 @@ public struct DemoOnboardingActions: OnboardingActing {
 }
 
 public enum DemoOnboarding {
-    /// One item per kind, exercising both shapes: choices where the config is
-    /// an array (wallpaper grid, add-vs-replace, Outlook-vs-Mail) and
-    /// confirmations where it is scalar.
+    /// One item per kind, covering both choices (arrays) and confirmations
+    /// (single values).
     public static func items() -> [OnboardingItem] {
         [
             OnboardingItem(
@@ -199,9 +191,8 @@ public enum DemoOnboarding {
         ]
     }
 
-    /// Real files when possible, so the grid shows real thumbnails: whatever
-    /// images macOS ships in its Desktop Pictures folder on this machine.
-    /// Fabricated paths otherwise — the grid falls back to placeholders.
+    /// Images from the system Desktop Pictures folder when present;
+    /// placeholder paths otherwise.
     static func demoWallpaperSources() -> [OnboardingItem.Source] {
         let directory = URL(filePath: "/System/Library/Desktop Pictures")
         let found = (try? FileManager.default.contentsOfDirectory(
@@ -218,8 +209,7 @@ public enum DemoOnboarding {
             : Array(found)
     }
 
-    /// A fresh, fully in-memory engine. State goes to a throwaway directory so
-    /// repeated demo launches start clean and never touch real user state.
+    /// A new engine whose state is kept in a temporary directory.
     public static func makeEngine() -> OnboardingEngine {
         let world = DemoOnboardingWorld()
         let store = StateStore(rootDirectory: URL(filePath: NSTemporaryDirectory())

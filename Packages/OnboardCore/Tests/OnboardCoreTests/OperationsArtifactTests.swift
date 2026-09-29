@@ -2,10 +2,8 @@ import Foundation
 import Testing
 @testable import OnboardCore
 
-/// The two files an administrator uploads alongside the package. Neither is
-/// exercised by running the app, so nothing else would notice them rotting:
-/// a renamed launchd label or a moved install path breaks them silently, on
-/// the Mac rather than here.
+/// The background-items profile and the custom attribute script, which the
+/// app itself never exercises.
 @Suite struct OperationsArtifactTests {
     private var repoRoot: URL {
         URL(filePath: #filePath)
@@ -16,7 +14,7 @@ import Testing
             .deletingLastPathComponent()
     }
 
-    /// Every label we install, read from the launchd plists themselves.
+    /// Labels from the launchd plists.
     private func installedLabels() throws -> [String] {
         let directory = repoRoot.appending(path: "LaunchServices")
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
@@ -34,7 +32,7 @@ import Testing
         let profile = try #require(
             try PropertyListSerialization.propertyList(from: try Data(contentsOf: url), format: nil) as? [String: Any]
         )
-        // Device channel only, and it must not land per-user.
+        // Device scope only.
         #expect(profile["PayloadType"] as? String == "Configuration")
         #expect(profile["PayloadScope"] as? String == "System")
 
@@ -61,16 +59,14 @@ import Testing
             contentsOf: repoRoot.appending(path: "Deploy/custom-attribute-onboard-status.sh"),
             encoding: .utf8
         )
-        // The path the pkg really uses, as built by Scripts/build-pkg.sh.
+        // The install path used by build-pkg.sh.
         #expect(script.contains("/Applications/Utilities/Intune Onboard.app/Contents/MacOS/onboardd"))
 
-        // Intune reads stdout as the value and treats a non-zero exit as a
-        // failed script, which would hide "this Mac has no package yet".
+        // Always exit 0: Intune treats a non-zero exit as a script failure.
         #expect(script.contains("not installed"))
         #expect(!script.contains("exit 1"), "every path must exit 0 so the value is reported, not an error")
 
-        // `status` is a read-only alias for $? in zsh: assigning to it fails
-        // and silently yields an empty attribute for every Mac.
+        // `status` is read-only in zsh.
         #expect(!script.contains("\nstatus="), "do not assign to `status` in zsh")
     }
 }

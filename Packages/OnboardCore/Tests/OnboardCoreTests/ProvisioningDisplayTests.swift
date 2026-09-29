@@ -49,7 +49,7 @@ import Testing
 
     @Test func mergesConfigOrderWithSnapshotState() {
         let snapshot = ProgressSnapshot(engineState: .running, items: [
-            // Deliberately out of config order: config decides what the user sees.
+            // Out of order: configuration order is used.
             .init(id: "defender", outcome: .running, status: .downloading),
             .init(id: "chrome", outcome: .success, status: .installed),
         ])
@@ -64,7 +64,7 @@ import Testing
         #expect(display.rows[0].title == "Chrome")
         #expect(display.rows[0].subtitle == "Browser")
         #expect(display.rows[1].outcome == .running)
-        // No snapshot entry yet: pending, not missing.
+        // No snapshot entry: pending.
         #expect(display.rows[2].outcome == .pending)
         #expect(display.rows[2].required == false)
         #expect(display.phase == .running)
@@ -102,7 +102,7 @@ import Testing
         #expect(display.fractionComplete == 0)
     }
 
-    /// The daemon can hold a profile the app can't read yet; ids beat nothing.
+    /// Without a configuration, item ids are used as titles.
     @Test func noConfigFallsBackToSnapshotIDs() {
         let snapshot = ProgressSnapshot(engineState: .running, items: [
             .init(id: "chrome", outcome: .success, status: .installed),

@@ -1,8 +1,6 @@
 import os
 
-/// Central logging namespace, shared by the daemon and the app.
-/// Categories separate the components; file mirroring (rotating sink under
-/// /var/log/IntuneOnboard) arrives in M1.
+/// Loggers for the daemon and the app.
 public enum OnboardLog {
     public static let subsystem = "be.jordythery.intuneonboard"
 

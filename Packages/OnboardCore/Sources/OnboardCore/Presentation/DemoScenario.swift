@@ -1,12 +1,7 @@
 import Foundation
 
-/// A scripted provisioning run for `--demo provisioning`: a fixed configuration and
-/// a timeline that is a pure function of elapsed time, so the provisioning UI
-/// can be built, reviewed and screenshotted without an ADE Mac — and so the
-/// timeline itself is testable.
-///
-/// The run deliberately fails one item to exercise the failure and retry
-/// paths; retrying makes it succeed.
+/// A scripted run for `--demo provisioning`: a fixed configuration and a
+/// timeline computed from elapsed time. One item fails; retrying succeeds.
 public enum DemoScenario {
     public struct Step: Equatable, Sendable {
         public let id: String
@@ -16,13 +11,13 @@ public enum DemoScenario {
         public let runningStatus: StatusKind
         public let outcome: ItemOutcome
         public let status: StatusKind
-        /// Shown verbatim while running, as a script's `status:` line would be.
+        /// Status text while running, as from a script's `status:` line.
         public let statusText: String?
 
         var end: Double { start + duration }
     }
 
-    /// Preflight occupies the first stretch, before any item starts.
+    /// Preflight duration, before the first item.
     public static let preflightSeconds = 2.0
 
     public static let failingStepID = "privileges"
@@ -48,8 +43,7 @@ public enum DemoScenario {
         steps.map(\.end).max() ?? preflightSeconds
     }
 
-    /// Where a retry restarts the clock: the moment the failing item began, so
-    /// the retry is visible rather than instantaneous.
+    /// Where a retry resumes: the start of the failing item.
     public static var retryRebaseSeconds: Double {
         steps.first { $0.id == failingStepID }?.start ?? 0
     }
@@ -100,9 +94,7 @@ public enum DemoScenario {
 
     // MARK: - Configuration
 
-    /// Mirrors the shape of a real profile: an organization block, titles in
-    /// two languages on one item to prove resolution works, and one of every
-    /// item kind the engine supports.
+    /// One item of every kind, with titles in two languages on one item.
     public static func configuration() -> Configuration {
         Configuration(
             organization: Configuration.Organization(
@@ -172,9 +164,8 @@ public enum DemoScenario {
     }
 }
 
-/// Drives `DemoScenario` off a wall clock. Retry rewinds to the failing item
-/// and lets it succeed, so the whole failure → retry → complete path is
-/// reachable from `--demo provisioning`.
+/// Drives `DemoScenario` from the clock. Retry rewinds to the failing item,
+/// which then succeeds.
 public actor DemoProgressSource: ProgressProviding {
     private var startedAt = ContinuousClock.now
     private var elapsedOffset = 0.0
@@ -185,8 +176,7 @@ public actor DemoProgressSource: ProgressProviding {
     public func currentSnapshot() async -> ProgressSnapshot? {
         let seconds = elapsed
         let base = DemoScenario.snapshot(atElapsed: seconds, retried: retried)
-        // Carry a start time so "About this Mac" shows a ticking elapsed
-        // value in the demo too, not just on a real run.
+        // A start time, for the elapsed time in "About this Mac".
         return ProgressSnapshot(
             engineState: base.engineState,
             items: base.items,

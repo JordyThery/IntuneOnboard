@@ -2,8 +2,7 @@ import Foundation
 import Testing
 @testable import OnboardCore
 
-/// The example configs shipped in Deploy/ must always parse and validate —
-/// they are the first thing an admin copies.
+/// The example profiles in Deploy/ parse and validate.
 @Suite struct DeployExampleTests {
     private var repoRoot: URL {
         // …/Packages/OnboardCore/Tests/OnboardCoreTests/DeployExampleTests.swift → repo root
@@ -38,12 +37,7 @@ import Testing
         #expect(configuration.onboarding?.items.count == 4)
     }
 
-    /// The `.mobileconfig` (Custom profile) and the `.plist` (Preference file)
-    /// are two routes to the same managed preferences, and an admin picks one.
-    /// They drifted apart once — the mobileconfig was missing `onboarding`,
-    /// `network` and `requireADE` — which is exactly the kind of difference
-    /// nobody notices until a device behaves differently. Regenerate the
-    /// mobileconfig payload from the plist if this fails.
+    /// Each `.mobileconfig` carries the same settings as its `.plist`.
     @Test func mobileconfigAndPlistCarryTheSameSettings() throws {
         let fromMobileconfig = try mobileconfigSettings()
         let fromPlist = try preferenceFileSettings()
@@ -52,24 +46,20 @@ import Testing
             Set(fromMobileconfig.keys) == Set(fromPlist.keys),
             "top-level keys differ: mobileconfig \(Set(fromMobileconfig.keys).sorted()) vs plist \(Set(fromPlist.keys).sorted())"
         )
-        // Compare as plist data rather than Any: NSDictionary equality on
-        // plist-derived values is exactly the comparison we want here.
+        // NSDictionary equality compares plist values correctly.
         #expect(
             (fromMobileconfig as NSDictionary) == (fromPlist as NSDictionary),
             "the mobileconfig payload and the preference file no longer match"
         )
     }
 
-    /// Intune's Preference file profile rejects a wrapped document with
-    /// "We couldn't validate your file" (-2016341103): it wants bare key/value
-    /// pairs. The Custom profile route needs a whole profile. So the plist must
-    /// stay a full document and the mobileconfig must stay a profile.
+    /// The `.plist` is a complete document and the `.mobileconfig` a profile.
     @Test func deployFilesKeepTheShapeTheirUploadRouteExpects() throws {
         let plist = try Data(contentsOf: repoRoot.appending(path: "Deploy/be.jordythery.intuneonboard.plist"))
         let profile = try Data(contentsOf: repoRoot.appending(path: "Deploy/be.jordythery.intuneonboard.mobileconfig"))
 
         for data in [plist, profile] {
-            // No BOM and no leading whitespace: both break Intune's upload.
+            // A BOM or leading whitespace breaks the Intune upload.
             #expect(data.first == UInt8(ascii: "<"))
         }
         let parsedProfile = try PropertyListSerialization.propertyList(from: profile, format: nil) as? [String: Any]
@@ -86,17 +76,14 @@ import Testing
         )
         #expect(configuration.provisioning?.items.count == 6)
         #expect(configuration.onboarding?.items.count == 7)
-        // Nothing illustrative may block the completion marker, so the file
-        // stays safe to deploy as a smoke test.
+        // Example items are optional, so the profile is safe to deploy.
         let items = (configuration.provisioning?.items.map(\.required) ?? [])
             + (configuration.onboarding?.items.map(\.required) ?? [])
         #expect(items.allSatisfy { $0 == false })
     }
 
-    /// The point of the example profile is that it documents *everything*.
-    /// The key list is extracted from the parser's own source rather than
-    /// hard-coded here, so adding a configuration key without documenting it
-    /// fails this test instead of quietly shipping.
+    /// The example profile mentions every key the parser reads. Keys are
+    /// taken from the parser's source.
     @Test func exampleProfileDocumentsEveryKeyTheParserReads() throws {
         let keys = try parserKeys()
         #expect(keys.count >= 60, "the key extraction stopped working; it found only \(keys.count)")
@@ -105,11 +92,8 @@ import Testing
         let text = try String(contentsOf: url, encoding: .utf8)
         let present = try keysPresent(in: settings(at: "Deploy/be.jordythery.intuneonboard.example.plist"))
 
-        // `sha256` ships commented out on purpose: a placeholder hash would
-        // fail the wallpaper item on every Mac, so it is documented in prose
-        // with the real value left to the admin.
-        // `deviceNameTemplate` ships commented out because a live template
-        // would rename every Mac this smoke-test profile is deployed to.
+        // Commented out in the example: a placeholder `sha256` would fail,
+        // and a live `deviceNameTemplate` would rename test Macs.
         let intentionallyCommentedOut: Set<String> = [
             "sha256", "deviceNameTemplate",
         ]
@@ -149,11 +133,7 @@ import Testing
 
     // MARK: - Helpers
 
-    /// Every accessor `PlistDecoder` offers, read from its own source rather
-    /// than listed here. A hard-coded list silently shrank this test's
-    /// coverage once: `strings` and `stringsDict` were missing from it, so
-    /// keys read through them — `dockStrategy`, `urlSchemes`, `types` — were
-    /// never checked against the example profile at all.
+    /// `PlistDecoder`'s accessors, read from its source.
     private func decoderAccessors() throws -> [String] {
         let source = try String(
             contentsOf: repoRoot.appending(path: "Packages/OnboardCore/Sources/OnboardCore/Config/PlistDecoding.swift"),
@@ -161,13 +141,12 @@ import Testing
         )
         let declaration = /func ([a-zA-Z]+)\(_ key: String\)/
         let names = Set(source.matches(of: declaration).map { String($0.output.1) })
-        // Longest first: the alternation is ordered, and `string` would
-        // otherwise shadow `stringArray` and the rest.
+        // Longest first, so `string` does not match `stringArray`.
         return names.sorted { ($0.count, $0) > ($1.count, $1) }
     }
 
-    /// Every key name the parser asks for, read out of its source. Two call
-    /// shapes: the `PlistDecoder` accessors, and `parseURLList(_:key:)`.
+    /// Keys read by the parser: `PlistDecoder` accessors and
+    /// `parseURLList(_:key:)`.
     private func parserKeys() throws -> Set<String> {
         let directory = repoRoot.appending(path: "Packages/OnboardCore/Sources/OnboardCore/Config")
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
@@ -191,7 +170,7 @@ import Testing
         return keys
     }
 
-    /// Every dictionary key anywhere in a parsed plist.
+    /// All dictionary keys in a plist.
     private func keysPresent(in value: Any) throws -> Set<String> {
         var found: Set<String> = []
         if let dictionary = value as? [String: Any] {
@@ -242,7 +221,7 @@ import Testing
             payload["PayloadType"] as? String == ServiceIdentity.preferencesDomain,
             "the payload type is the preference domain — that is what puts the file in /Library/Managed Preferences/"
         )
-        // Strip the Payload* wrapper keys; the rest is our domain content.
+        // Without the Payload* wrapper keys.
         return payload.filter { !$0.key.hasPrefix("Payload") }
     }
 }

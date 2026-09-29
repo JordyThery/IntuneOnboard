@@ -1,29 +1,18 @@
 import Foundation
 
-/// The `deviceNameTemplate` grammar: literal text with `%token%`
-/// substitutions, an optional `:n` modifier per token, and `%%` as an
-/// escaped percent sign.
-///
-/// Only the device-derived tokens exist here — `%serial%`, `%udid%`,
-/// `%model%`, `%model-short%`. User-entry tokens (`%email%`, `%assetTag%`,
-/// …) would need an entry dialog, which was rejected by decision, and Intune
-/// exposes no stable on-device source for them before a
-/// user signs in.
-///
-/// Parsed (and rejected) at config-parse time, so a typo like `%serail%`
-/// fails the profile loudly instead of naming a fleet wrong.
+/// A `deviceNameTemplate`: literal text with `%token%` substitutions, an
+/// optional modifier per token, and `%%` for a literal percent sign.
+/// Invalid templates are rejected when the configuration is parsed.
 public struct NameTemplate: Equatable, Sendable {
     public enum Token: String, Equatable, Sendable, CaseIterable {
         case serial
         case udid
         case model
-        /// The first word of the model: "MacBook" for a MacBook Air, "Mac"
-        /// for a Mac mini.
+        /// First word of the model, e.g. "MacBook" for a MacBook Air.
         case modelShort = "model-short"
     }
 
-    /// The `:n` substring rules: `:n` keeps the first n characters,
-    /// `:-n` the last n, `:=n` the center n.
+    /// `:n` first n characters, `:-n` last n, `:=n` middle n.
     public enum Modifier: Equatable, Sendable {
         case first(Int)
         case last(Int)
@@ -37,8 +26,7 @@ public struct NameTemplate: Equatable, Sendable {
                 if value.count <= n {
                     value
                 } else {
-                    // Drop the surplus evenly; an odd leftover comes off the
-                    // end (start index rounds down).
+                    // An odd surplus is taken from the end.
                     String(Array(value)[((value.count - n) / 2)...].prefix(n))
                 }
             }
@@ -96,7 +84,6 @@ public struct NameTemplate: Equatable, Sendable {
                 literal.append(character)
                 continue
             }
-            // %% is a literal percent sign.
             if rest.first == "%" {
                 literal.append("%")
                 rest = rest.dropFirst()
@@ -139,8 +126,7 @@ public struct NameTemplate: Equatable, Sendable {
 
     // MARK: - Rendering
 
-    /// The name, or nil when any token has no value — a partially substituted
-    /// computer name pushed into inventory is worse than no rename at all.
+    /// The rendered name, or nil if any token has no value.
     public func render(value: (Token) -> String?) -> String? {
         var result = ""
         for segment in segments {
@@ -157,10 +143,9 @@ public struct NameTemplate: Equatable, Sendable {
 
     // MARK: - LocalHostName
 
-    /// Bonjour's rules for the rendered name: ASCII letters, digits and
-    /// hyphens only, at most 63 characters. Spaces and underscores become
-    /// hyphens, everything else disallowed is dropped, runs collapse, and the
-    /// ends are trimmed. nil when nothing survives.
+    /// A Bonjour-safe host name: ASCII letters, digits and single hyphens, at
+    /// most 63 characters. Spaces and underscores become hyphens; other
+    /// characters are dropped. nil if nothing remains.
     public static func localHostName(from name: String) -> String? {
         var sanitized = ""
         var previousWasHyphen = false
@@ -174,9 +159,8 @@ public struct NameTemplate: Equatable, Sendable {
                     previousWasHyphen = true
                 }
             }
-            // Anything else is dropped.
         }
-        // Truncate before trimming: cutting at 63 can itself expose a hyphen.
+        // Truncate first; truncation can leave a trailing hyphen.
         var trimmed = String(sanitized.prefix(63))
         while trimmed.hasSuffix("-") { trimmed.removeLast() }
         return trimmed.isEmpty ? nil : trimmed

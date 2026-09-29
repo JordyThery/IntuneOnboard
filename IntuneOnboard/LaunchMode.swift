@@ -1,6 +1,6 @@
 import Foundation
 
-/// How the app was launched. Decides which UI is shown and how the window is presented.
+/// How the app was launched; determines the UI and window behaviour.
 enum LaunchMode: Equatable, Sendable {
     case setupAssistant
     case user
@@ -19,9 +19,7 @@ enum LaunchMode: Equatable, Sendable {
         }
     }
 
-    /// Full-screen, above everything, with no way for the person in front of
-    /// the Mac to get rid of it: the modes where the app stands in for the
-    /// system UI while root work happens.
+    /// Full screen, above Setup Assistant, and not dismissable by the user.
     var isKiosk: Bool {
         switch self {
         case .setupAssistant: true
@@ -30,25 +28,19 @@ enum LaunchMode: Equatable, Sendable {
     }
 }
 
-/// Parsed process arguments. `--mode setup-assistant|user`,
-/// `--demo provisioning|onboarding`, `--launched-by <method>` (set by the
-/// daemon/agents so the spike can log how the app was started), and the
-/// spike-only `--window-level <raw>` override for iterating window levels
-/// over Setup Assistant without rebuilding.
+/// Parsed arguments: `--mode setup-assistant|user`,
+/// `--demo provisioning|onboarding`, `--launched-by <method>` (logged), and
+/// `--window-level <n>` (testing).
 struct LaunchArguments: Sendable {
     let mode: LaunchMode
     let launchedBy: String
     let windowLevelOverride: Int?
-    /// `--show-log`: opens the log panel at launch. Demo only, for reviewing
-    /// its placement without having to press ⌘L.
+    /// `--show-log`: opens the log panel at launch (demo only).
     let showsLogAtLaunch: Bool
-    /// `--focus`: forces `windowPosition: focus` in the onboarding demo, the
-    /// only way to review the backdrop without deploying a profile.
-    /// `--focus blur` turns the blur on too.
+    /// `--focus [blur]`: previews `windowPosition: focus` in the onboarding demo.
     let forcesFocusMode: Bool
     let forcesFocusBlur: Bool
 
-    /// Parsed once: the app scene and the app delegate both need them.
     static let current = parse()
 
     static func parse(_ arguments: [String] = CommandLine.arguments) -> LaunchArguments {
