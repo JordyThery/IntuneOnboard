@@ -1,0 +1,19 @@
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcresult
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Packaging output
+/build/
+/dist/
+*.pkg
+
+# macOS
+.DS_Store
+
+# Derived icon preview (regenerate: Scripts/make-app-icon.swift)
+Design/app-icon-1024.png

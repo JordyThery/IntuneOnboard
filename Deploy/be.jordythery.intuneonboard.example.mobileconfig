@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Intune Onboard settings (example)</string>
+			<key>PayloadIdentifier</key>
+			<string>be.jordythery.intuneonboard.settings</string>
+			<key>PayloadType</key>
+			<string>be.jordythery.intuneonboard</string>
+			<key>PayloadUUID</key>
+			<string>B7E4D9C1-3F62-4A8E-9D05-7C1E4B2A6F31</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>dryRun</key>
+			<false/>
+			<key>installomator</key>
+			<dict>
+				<key>defaultOptions</key>
+				<array>
+					<string>NOTIFY=silent</string>
+					<string>BLOCKING_PROCESS_ACTION=ignore</string>
+					<string>INSTALL=force</string>
+					<string>IGNORE_APP_STORE_APPS=yes</string>
+					<string>LOGGING=REQ</string>
+				</array>
+			</dict>
+			<key>logging</key>
+			<dict>
+				<key>keepArchives</key>
+				<integer>3</integer>
+				<key>maxFileSizeMB</key>
+				<integer>10</integer>
+			</dict>
+			<key>network</key>
+			<dict>
+				<key>requiredURLs</key>
+				<array>
+					<string>https://officecdn.microsoft.com</string>
+				</array>
+				<key>timeoutSeconds</key>
+				<integer>30</integer>
+				<key>warnURLs</key>
+				<array>
+					<string>https://download.teamviewer.com</string>
+				</array>
+			</dict>
+			<key>onboarding</key>
+			<dict>
+				<key>allowQuit</key>
+				<true/>
+				<key>background</key>
+				<string>https://example.com/branding/backdrop.jpg</string>
+				<key>blur</key>
+				<false/>
+				<key>hideOtherApps</key>
+				<false/>
+				<key>items</key>
+				<array>
+					<dict>
+						<key>icon</key>
+						<string>symbol:hand.wave</string>
+						<key>id</key>
+						<string>welcome</string>
+						<key>kind</key>
+						<string>message</string>
+						<key>required</key>
+						<false/>
+						<key>subtitle</key>
+						<string>A few steps to make it yours. Press Continue to begin.</string>
+						<key>title</key>
+						<string>Welcome to your new Mac</string>
+					</dict>
+					<dict>
+						<key>allowKeepExisting</key>
+						<true/>
+						<key>id</key>
+						<string>wallpaper</string>
+						<key>kind</key>
+						<string>wallpaper</string>
+						<key>required</key>
+						<false/>
+						<key>source</key>
+						<array>
+							<string>https://example.com/branding/wallpaper-light.jpg</string>
+							<string>https://example.com/branding/wallpaper-dark.jpg</string>
+						</array>
+						<key>title</key>
+						<string>Company wallpaper</string>
+					</dict>
+					<dict>
+						<key>dockStrategy</key>
+						<array>
+							<string>add</string>
+							<string>replace</string>
+						</array>
+						<key>id</key>
+						<string>dock</string>
+						<key>items</key>
+						<array>
+							<string>/System/Applications/Apps.app</string>
+							<string>/Applications/Microsoft Edge.app</string>
+							<string>/Applications/Microsoft Outlook.app</string>
+							<string>bundleid:com.microsoft.CompanyPortalMac</string>
+							<string>/System/Applications/System Settings.app</string>
+						</array>
+						<key>kind</key>
+						<string>dock</string>
+						<key>required</key>
+						<false/>
+						<key>restartDock</key>
+						<true/>
+						<key>title</key>
+						<string>Dock</string>
+						<key>waitForItemsTimeout</key>
+						<integer>300</integer>
+					</dict>
+					<dict>
+						<key>allowKeepExisting</key>
+						<false/>
+						<key>browser</key>
+						<string>com.microsoft.edgemac</string>
+						<key>buttonTitle</key>
+						<string>Set defaults</string>
+						<key>explanation</key>
+						<string>macOS will ask you to confirm each change.</string>
+						<key>id</key>
+						<string>defaults</string>
+						<key>kind</key>
+						<string>defaultApps</string>
+						<key>mode</key>
+						<string>interactive</string>
+						<key>required</key>
+						<false/>
+						<key>title</key>
+						<string>Default apps</string>
+						<key>types</key>
+						<dict>
+							<key>com.adobe.pdf</key>
+							<string>com.microsoft.edgemac</string>
+						</dict>
+						<key>urlSchemes</key>
+						<dict>
+							<key>mailto</key>
+							<array>
+								<string>com.microsoft.Outlook</string>
+								<string>com.apple.mail</string>
+							</array>
+						</dict>
+					</dict>
+					<dict>
+						<key>buttonTitle</key>
+						<string>Open Company Portal</string>
+						<key>completion</key>
+						<string>manual</string>
+						<key>icon</key>
+						<string>bundleid:com.microsoft.CompanyPortalMac</string>
+						<key>id</key>
+						<string>register</string>
+						<key>kind</key>
+						<string>open</string>
+						<key>required</key>
+						<false/>
+						<key>target</key>
+						<string>bundleid:com.microsoft.CompanyPortalMac</string>
+						<key>title</key>
+						<string>Register this Mac in Company Portal</string>
+					</dict>
+					<dict>
+						<key>buttonTitle</key>
+						<string>Open System Settings</string>
+						<key>completion</key>
+						<string>validatePath</string>
+						<key>id</key>
+						<string>enable-touchid</string>
+						<key>kind</key>
+						<string>open</string>
+						<key>required</key>
+						<false/>
+						<key>target</key>
+						<string>x-apple.systempreferences:com.apple.preferences.password</string>
+						<key>title</key>
+						<string>Set up Touch ID</string>
+						<key>validatePath</key>
+						<string>/var/db/TouchID</string>
+					</dict>
+					<dict>
+						<key>enabled</key>
+						<false/>
+						<key>exclude</key>
+						<array>
+							<string>ladmin</string>
+							<string>contosoadmin</string>
+						</array>
+						<key>id</key>
+						<string>demote</string>
+						<key>kind</key>
+						<string>demoteUser</string>
+						<key>required</key>
+						<false/>
+						<key>title</key>
+						<string>Standard account</string>
+					</dict>
+				</array>
+				<key>launchOnCompletion</key>
+				<string>bundleid:com.microsoft.CompanyPortalMac</string>
+				<key>message</key>
+				<string>A few last things, just for this account.</string>
+				<key>title</key>
+				<string>Finish setting up</string>
+				<key>windowPosition</key>
+				<string>center</string>
+			</dict>
+			<key>organization</key>
+			<dict>
+				<key>accentColor</key>
+				<string>#0F6CBD</string>
+				<key>help</key>
+				<dict>
+					<key>message</key>
+					<string>Scan this code to reach the **IT service desk**.</string>
+					<key>title</key>
+					<string>Need a hand?</string>
+					<key>url</key>
+					<string>https://example.com/support</string>
+				</dict>
+				<key>logo</key>
+				<string>https://example.com/branding/logo.png</string>
+				<key>name</key>
+				<string>Contoso</string>
+				<key>supportText</key>
+				<string>IT service desk · +32 (0)3 123 45 67</string>
+				<key>supportURL</key>
+				<string>https://example.com/support</string>
+			</dict>
+			<key>provisioning</key>
+			<dict>
+				<key>allowContinueOnError</key>
+				<false/>
+				<key>items</key>
+				<array>
+					<dict>
+						<key>icon</key>
+						<string>symbol:cpu</string>
+						<key>id</key>
+						<string>rosetta</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>rosetta2</string>
+						<key>required</key>
+						<false/>
+						<key>subtitle</key>
+						<string>Intel app support</string>
+						<key>timeout</key>
+						<integer>900</integer>
+						<key>title</key>
+						<string>Rosetta 2</string>
+					</dict>
+					<dict>
+						<key>icon</key>
+						<string>https://example.com/branding/microsoft-365.png</string>
+						<key>id</key>
+						<string>m365</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>microsoftoffice365</string>
+						<key>options</key>
+						<array>
+							<string>INSTALL=force</string>
+						</array>
+						<key>required</key>
+						<false/>
+						<key>timeout</key>
+						<integer>2400</integer>
+						<key>title</key>
+						<string>Microsoft 365</string>
+					</dict>
+					<dict>
+						<key>icon</key>
+						<string>bundleid:com.microsoft.edgemac</string>
+						<key>id</key>
+						<string>edge</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>microsoftedge</string>
+						<key>required</key>
+						<false/>
+						<key>title</key>
+						<string>Microsoft Edge</string>
+						<key>validatePath</key>
+						<string>/Applications/Microsoft Edge.app</string>
+					</dict>
+					<dict>
+						<key>arguments</key>
+						<array>
+							<string>--verbose</string>
+						</array>
+						<key>icon</key>
+						<string>symbol:gearshape.2</string>
+						<key>id</key>
+						<string>smoke-test</string>
+						<key>interpreter</key>
+						<string>/bin/zsh</string>
+						<key>kind</key>
+						<string>script</string>
+						<key>required</key>
+						<false/>
+						<key>script</key>
+						<string>#!/bin/zsh
+echo "status: checking the disk"
+/usr/bin/diskutil info / &gt;/dev/null
+echo "status: done"
+exit 0
+</string>
+						<key>statusFromOutput</key>
+						<true/>
+						<key>successExitCodes</key>
+						<array>
+							<integer>0</integer>
+							<integer>42</integer>
+						</array>
+						<key>timeout</key>
+						<integer>300</integer>
+						<key>title</key>
+						<string>Applying local settings</string>
+					</dict>
+					<dict>
+						<key>icon</key>
+						<string>symbol:hourglass</string>
+						<key>id</key>
+						<string>settle</string>
+						<key>kind</key>
+						<string>wait</string>
+						<key>message</key>
+						<string>Finishing background work…</string>
+						<key>required</key>
+						<false/>
+						<key>seconds</key>
+						<integer>5</integer>
+						<key>title</key>
+						<string>Letting things settle</string>
+					</dict>
+					<dict>
+						<key>condition</key>
+						<string>exists</string>
+						<key>icon</key>
+						<string>symbol:shield.lefthalf.filled</string>
+						<key>id</key>
+						<string>wait-for-defender</string>
+						<key>kind</key>
+						<string>awaitPath</string>
+						<key>path</key>
+						<string>/Applications/Microsoft Defender.app</string>
+						<key>required</key>
+						<false/>
+						<key>subtitle</key>
+						<string>Delivered by Intune</string>
+						<key>timeout</key>
+						<integer>600</integer>
+						<key>title</key>
+						<string>Waiting for Microsoft Defender</string>
+					</dict>
+				</array>
+				<key>message</key>
+				<string>This takes a few minutes. Keep the Mac plugged in and connected to the network.</string>
+				<key>showDeviceInfo</key>
+				<true/>
+				<key>title</key>
+				<dict>
+					<key>en</key>
+					<string>Setting up your Mac</string>
+					<key>fr</key>
+					<string>Configuration de votre Mac</string>
+					<key>nl</key>
+					<string>Je Mac wordt ingesteld</string>
+				</dict>
+			</dict>
+			<key>requireADE</key>
+			<false/>
+			<key>schemaVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Every available Intune Onboard setting. The annotated version, with a comment on each key, is be.jordythery.intuneonboard.example.plist.</string>
+	<key>PayloadDisplayName</key>
+	<string>Intune Onboard (example — every key)</string>
+	<key>PayloadIdentifier</key>
+	<string>be.jordythery.intuneonboard.example</string>
+	<key>PayloadOrganization</key>
+	<string>Contoso</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A1C83E57-9B04-42D6-8E7F-2D5B60C9A814</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,0 +1,19 @@
+#!/bin/zsh
+# postinstall — bootstrap the daemon, and the agent for a logged-in GUI user.
+# Idempotent for reinstalls and upgrades (preinstall already booted out).
+set -u
+
+DAEMON_LABEL="be.jordythery.intuneonboard.daemon"
+AGENT_LABEL="be.jordythery.intuneonboard.agent"
+
+/bin/mkdir -p /var/log/IntuneOnboard
+/bin/chmod 755 /var/log/IntuneOnboard
+
+/bin/launchctl bootstrap system "/Library/LaunchDaemons/$DAEMON_LABEL.plist" || true
+
+CONSOLE_UID="$(/usr/bin/stat -f %u /dev/console 2>/dev/null || echo 0)"
+if [[ "$CONSOLE_UID" -gt 0 ]]; then
+    /bin/launchctl bootstrap "gui/$CONSOLE_UID" "/Library/LaunchAgents/$AGENT_LABEL.plist" || true
+fi
+
+exit 0

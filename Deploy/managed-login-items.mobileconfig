@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadIdentifier</key>
+			<string>be.jordythery.intuneonboard.loginitems</string>
+			<key>PayloadUUID</key>
+			<string>6337E5FF-3860-4198-BB48-EDA241DC4463</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadDisplayName</key>
+			<string>Intune Onboard background items</string>
+			<key>PayloadDescription</key>
+			<string>Approves Intune Onboard's launchd jobs so macOS does not notify the user about them and does not let the user switch them off. Without this, the user sees "Background Items Added" during enrollment and can disable onboarding from Login Items &amp; Extensions.</string>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>LabelPrefix</string>
+					<key>RuleValue</key>
+					<string>be.jordythery.intuneonboard</string>
+					<key>Comment</key>
+					<string>Covers the root daemon and the user agent in one rule: be.jordythery.intuneonboard.daemon and .agent.</string>
+				</dict>
+				<dict>
+					<key>RuleType</key>
+					<string>BundleIdentifier</string>
+					<key>RuleValue</key>
+					<string>be.jordythery.intuneonboard</string>
+					<key>Comment</key>
+					<string>The app itself, for the case where it registers as a login item rather than being started by an agent.</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadIdentifier</key>
+	<string>be.jordythery.intuneonboard.loginitems.profile</string>
+	<key>PayloadUUID</key>
+	<string>DB4F154B-7DB0-4543-994C-4C05FA455631</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadDisplayName</key>
+	<string>Intune Onboard — background items</string>
+	<key>PayloadOrganization</key>
+	<string>Contoso</string>
+	<key>PayloadDescription</key>
+	<string>Pre-approves Intune Onboard's background items. Upload as a Custom profile and assign to the same device group as the settings profile.</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+</dict>
+</plist>

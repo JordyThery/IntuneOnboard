@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>be.jordythery.intuneonboard.agent</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Applications/Utilities/Intune Onboard.app/Contents/MacOS/Intune Onboard</string>
+		<string>--mode</string>
+		<string>user</string>
+		<string>--launched-by</string>
+		<string>launch-agent</string>
+	</array>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>be.jordythery.intuneonboard</string>
+	</array>
+	<key>LimitLoadToSessionType</key>
+	<string>Aqua</string>
+	<key>RunAtLoad</key>
+	<true/>
+</dict>
+</plist>

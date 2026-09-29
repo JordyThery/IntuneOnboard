@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Intune Onboard settings</string>
+			<key>PayloadIdentifier</key>
+			<string>be.jordythery.intuneonboard.settings</string>
+			<key>PayloadType</key>
+			<string>be.jordythery.intuneonboard</string>
+			<key>PayloadUUID</key>
+			<string>8C0F42A6-6B0D-4E6B-9A3C-1B62D2D3A101</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>onboarding</key>
+			<dict>
+				<key>items</key>
+				<array>
+					<dict>
+						<key>id</key>
+						<string>wallpaper</string>
+						<key>kind</key>
+						<string>wallpaper</string>
+						<key>source</key>
+						<string>/Library/Application Support/Contoso/company-wallpaper.jpg</string>
+					</dict>
+					<dict>
+						<key>id</key>
+						<string>dock</string>
+						<key>items</key>
+						<array>
+							<string>/System/Applications/Apps.app</string>
+							<string>/Applications/Microsoft Edge.app</string>
+							<string>/Applications/Microsoft Outlook.app</string>
+							<string>/Applications/Microsoft Teams.app</string>
+							<string>/Applications/Microsoft Word.app</string>
+							<string>/Applications/Microsoft Excel.app</string>
+							<string>/Applications/Microsoft PowerPoint.app</string>
+							<string>/Applications/Company Portal.app</string>
+							<string>/Applications/TeamViewerQS.app</string>
+							<string>/System/Applications/System Settings.app</string>
+						</array>
+						<key>kind</key>
+						<string>dock</string>
+						<key>dockStrategy</key>
+						<string>replace</string>
+						<key>waitForItemsTimeout</key>
+						<integer>300</integer>
+					</dict>
+					<dict>
+						<key>browser</key>
+						<string>com.microsoft.edgemac</string>
+						<key>id</key>
+						<string>defaults</string>
+						<key>kind</key>
+						<string>defaultApps</string>
+						<key>urlSchemes</key>
+						<dict>
+							<key>mailto</key>
+							<string>com.microsoft.Outlook</string>
+						</dict>
+					</dict>
+					<dict>
+						<key>completion</key>
+						<string>manual</string>
+						<key>id</key>
+						<string>register</string>
+						<key>kind</key>
+						<string>open</string>
+						<key>target</key>
+						<string>/Applications/Company Portal.app</string>
+						<key>title</key>
+						<string>Register this Mac in Company Portal</string>
+					</dict>
+				</array>
+			</dict>
+			<key>network</key>
+			<dict>
+				<key>requiredURLs</key>
+				<array/>
+				<key>warnURLs</key>
+				<array>
+					<string>https://officecdn.microsoft.com</string>
+				</array>
+			</dict>
+			<key>organization</key>
+			<dict>
+				<key>accentColor</key>
+				<string>#0F6CBD</string>
+				<key>help</key>
+				<dict>
+					<key>message</key>
+					<string>Scan this code to reach the **IT service desk**.</string>
+					<key>title</key>
+					<string>Need a hand?</string>
+					<key>url</key>
+					<string>https://example.com/support</string>
+				</dict>
+				<key>logo</key>
+				<string>/Library/Application Support/Contoso/logo.png</string>
+				<key>name</key>
+				<string>Contoso</string>
+			</dict>
+			<key>provisioning</key>
+			<dict>
+				<key>items</key>
+				<array>
+					<dict>
+						<key>icon</key>
+						<string>https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Microsoft_365_%282022%29.svg/240px-Microsoft_365_%282022%29.svg.png</string>
+						<key>id</key>
+						<string>m365</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>microsoftofficebusinesspro</string>
+						<key>title</key>
+						<string>Microsoft 365</string>
+						<key>validatePath</key>
+						<string>/Applications/Microsoft Outlook.app</string>
+					</dict>
+					<dict>
+						<key>icon</key>
+						<string>https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Microsoft_Edge_logo_%282019%29.svg/240px-Microsoft_Edge_logo_%282019%29.svg.png</string>
+						<key>id</key>
+						<string>edge</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>microsoftedge</string>
+						<key>title</key>
+						<string>Microsoft Edge</string>
+					</dict>
+					<dict>
+						<key>icon</key>
+						<string>bundleid:com.microsoft.CompanyPortalMac</string>
+						<key>id</key>
+						<string>companyportal</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>microsoftcompanyportal</string>
+						<key>title</key>
+						<string>Company Portal</string>
+					</dict>
+					<dict>
+						<key>icon</key>
+						<string>bundleid:com.teamviewer.TeamViewerQS</string>
+						<key>id</key>
+						<string>teamviewerqs</string>
+						<key>kind</key>
+						<string>installomator</string>
+						<key>label</key>
+						<string>teamviewerqs</string>
+						<key>title</key>
+						<string>TeamViewer QuickSupport</string>
+					</dict>
+				</array>
+				<key>showDeviceInfo</key>
+				<true/>
+				<key>title</key>
+				<dict>
+					<key>en</key>
+					<string>Installing apps</string>
+					<key>fr</key>
+					<string>Installation des apps</string>
+					<key>nl</key>
+					<string>Installeren van apps</string>
+				</dict>
+			</dict>
+			<key>requireADE</key>
+			<false/>
+			<key>schemaVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Intune Onboard</string>
+	<key>PayloadIdentifier</key>
+	<string>be.jordythery.intuneonboard.profile</string>
+	<key>PayloadOrganization</key>
+	<string>Contoso</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>3D9C7B58-2E44-49D1-8F0A-5C7E9B1D4F02</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,0 +1,599 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 90;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08EFA8D2305AABC0003366AA /* OnboardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 08EFA8D1305AABC0003366AA /* OnboardCore */; };
+		08EFA8D6305AAC55003366AA /* OnboardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 08EFA8D5305AAC55003366AA /* OnboardCore */; };
+		08EFA8D8305AAC58003366AA /* OnboardUI in Frameworks */ = {isa = PBXBuildFile; productRef = 08EFA8D7305AAC58003366AA /* OnboardUI */; };
+		08EFA8DA305AACDE003366AA /* onboardd in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08EFA8B9305AA8C9003366AA /* onboardd */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		08EFA8F8305AB52B003366AA /* Installomator.sh in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08EFA8EC305AB4EB003366AA /* Installomator.sh */; };
+		08EFA8F9305AB52B003366AA /* LICENSE in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08EFA8ED305AB4EB003366AA /* LICENSE */; };
+		08EFA8FB305AB55D003366AA /* desktoppr in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08EFA8E2305AB4EB003366AA /* desktoppr */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		08EFA8FC305AB55D003366AA /* dockutil in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08EFA8E7305AB4EB003366AA /* dockutil */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		08EFA8FD305AB55D003366AA /* utiluti in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08EFA8F3305AB4EB003366AA /* utiluti */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		08EFA8B7305AA8C9003366AA /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolder = None;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		08EFA8D9305AACCB003366AA /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = Executables;
+			files = (
+				08EFA8DA305AACDE003366AA /* onboardd in CopyFiles */,
+			);
+		};
+		08EFA8F7305AB50C003366AA /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = Installomator;
+			dstSubfolder = Resources;
+			files = (
+				08EFA8F8305AB52B003366AA /* Installomator.sh in CopyFiles */,
+				08EFA8F9305AB52B003366AA /* LICENSE in CopyFiles */,
+			);
+		};
+		08EFA8FA305AB53D003366AA /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = Contents/Helpers;
+			dstSubfolder = Wrapper;
+			files = (
+				08EFA8FB305AB55D003366AA /* desktoppr in CopyFiles */,
+				08EFA8FC305AB55D003366AA /* dockutil in CopyFiles */,
+				08EFA8FD305AB55D003366AA /* utiluti in CopyFiles */,
+			);
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		08EFA8AA305AA8C3003366AA /* Intune Onboard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Intune Onboard.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		08EFA8B9305AA8C9003366AA /* onboardd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = onboardd; sourceTree = BUILT_PRODUCTS_DIR; };
+		08EFA8E2305AB4EB003366AA /* desktoppr */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = desktoppr; sourceTree = "<group>"; };
+		08EFA8E3305AB4EB003366AA /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		08EFA8E4305AB4EB003366AA /* SHA256 */ = {isa = PBXFileReference; lastKnownFileType = text; path = SHA256; sourceTree = "<group>"; };
+		08EFA8E5305AB4EB003366AA /* VERSION */ = {isa = PBXFileReference; lastKnownFileType = text; path = VERSION; sourceTree = "<group>"; };
+		08EFA8E7305AB4EB003366AA /* dockutil */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = dockutil; sourceTree = "<group>"; };
+		08EFA8E8305AB4EB003366AA /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		08EFA8E9305AB4EB003366AA /* SHA256 */ = {isa = PBXFileReference; lastKnownFileType = text; path = SHA256; sourceTree = "<group>"; };
+		08EFA8EA305AB4EB003366AA /* VERSION */ = {isa = PBXFileReference; lastKnownFileType = text; path = VERSION; sourceTree = "<group>"; };
+		08EFA8EC305AB4EB003366AA /* Installomator.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Installomator.sh; sourceTree = "<group>"; };
+		08EFA8ED305AB4EB003366AA /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		08EFA8EE305AB4EB003366AA /* PINNED_SHA256 */ = {isa = PBXFileReference; lastKnownFileType = text; path = PINNED_SHA256; sourceTree = "<group>"; };
+		08EFA8EF305AB4EB003366AA /* SOURCE_COMMIT */ = {isa = PBXFileReference; lastKnownFileType = text; path = SOURCE_COMMIT; sourceTree = "<group>"; };
+		08EFA8F1305AB4EB003366AA /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		08EFA8F2305AB4EB003366AA /* SHA256 */ = {isa = PBXFileReference; lastKnownFileType = text; path = SHA256; sourceTree = "<group>"; };
+		08EFA8F3305AB4EB003366AA /* utiluti */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = utiluti; sourceTree = "<group>"; };
+		08EFA8F4305AB4EB003366AA /* VERSION */ = {isa = PBXFileReference; lastKnownFileType = text; path = VERSION; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		08EFA8AB305AA8C4003366AA /* IntuneOnboard */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = IntuneOnboard;
+			sourceTree = "<group>";
+		};
+		08EFA8BA305AA8C9003366AA /* onboardd */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = onboardd;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		08EFA8A7305AA8C3003366AA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				08EFA8D8305AAC58003366AA /* OnboardUI in Frameworks */,
+				08EFA8D6305AAC55003366AA /* OnboardCore in Frameworks */,
+			);
+		};
+		08EFA8B6305AA8C9003366AA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				08EFA8D2305AABC0003366AA /* OnboardCore in Frameworks */,
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				08EFA8F6305AB4EB003366AA /* Vendor */,
+				08EFA8AB305AA8C4003366AA /* IntuneOnboard */,
+				08EFA8BA305AA8C9003366AA /* onboardd */,
+				08EFA8CC305AAB87003366AA /* Frameworks */,
+				000000000000000000000020 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		000000000000000000000020 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				08EFA8AA305AA8C3003366AA /* Intune Onboard.app */,
+				08EFA8B9305AA8C9003366AA /* onboardd */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		08EFA8CC305AAB87003366AA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		08EFA8E6305AB4EB003366AA /* desktoppr */ = {
+			isa = PBXGroup;
+			children = (
+				08EFA8E2305AB4EB003366AA /* desktoppr */,
+				08EFA8E3305AB4EB003366AA /* LICENSE */,
+				08EFA8E4305AB4EB003366AA /* SHA256 */,
+				08EFA8E5305AB4EB003366AA /* VERSION */,
+			);
+			path = desktoppr;
+			sourceTree = "<group>";
+		};
+		08EFA8EB305AB4EB003366AA /* dockutil */ = {
+			isa = PBXGroup;
+			children = (
+				08EFA8E7305AB4EB003366AA /* dockutil */,
+				08EFA8E8305AB4EB003366AA /* LICENSE */,
+				08EFA8E9305AB4EB003366AA /* SHA256 */,
+				08EFA8EA305AB4EB003366AA /* VERSION */,
+			);
+			path = dockutil;
+			sourceTree = "<group>";
+		};
+		08EFA8F0305AB4EB003366AA /* Installomator */ = {
+			isa = PBXGroup;
+			children = (
+				08EFA8EC305AB4EB003366AA /* Installomator.sh */,
+				08EFA8ED305AB4EB003366AA /* LICENSE */,
+				08EFA8EE305AB4EB003366AA /* PINNED_SHA256 */,
+				08EFA8EF305AB4EB003366AA /* SOURCE_COMMIT */,
+			);
+			path = Installomator;
+			sourceTree = "<group>";
+		};
+		08EFA8F5305AB4EB003366AA /* utiluti */ = {
+			isa = PBXGroup;
+			children = (
+				08EFA8F1305AB4EB003366AA /* LICENSE */,
+				08EFA8F2305AB4EB003366AA /* SHA256 */,
+				08EFA8F3305AB4EB003366AA /* utiluti */,
+				08EFA8F4305AB4EB003366AA /* VERSION */,
+			);
+			path = utiluti;
+			sourceTree = "<group>";
+		};
+		08EFA8F6305AB4EB003366AA /* Vendor */ = {
+			isa = PBXGroup;
+			children = (
+				08EFA8E6305AB4EB003366AA /* desktoppr */,
+				08EFA8EB305AB4EB003366AA /* dockutil */,
+				08EFA8F0305AB4EB003366AA /* Installomator */,
+				08EFA8F5305AB4EB003366AA /* utiluti */,
+			);
+			path = Vendor;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		08EFA8A9305AA8C3003366AA /* IntuneOnboard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08EFA8B4305AA8C5003366AA /* Build configuration list for PBXNativeTarget "IntuneOnboard" */;
+			buildPhases = (
+				08EFA8A6305AA8C3003366AA /* Sources */,
+				08EFA8A7305AA8C3003366AA /* Frameworks */,
+				08EFA8A8305AA8C3003366AA /* Resources */,
+				08EFA8D9305AACCB003366AA /* CopyFiles */,
+				08EFA8F7305AB50C003366AA /* CopyFiles */,
+				08EFA8FA305AB53D003366AA /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				08EFA8AB305AA8C4003366AA /* IntuneOnboard */,
+			);
+			name = IntuneOnboard;
+			packageProductDependencies = (
+				08EFA8D5305AAC55003366AA /* OnboardCore */,
+				08EFA8D7305AAC58003366AA /* OnboardUI */,
+			);
+			productName = IntuneOnboard;
+			productReference = 08EFA8AA305AA8C3003366AA /* Intune Onboard.app */;
+			productType = "com.apple.product-type.application";
+		};
+		08EFA8B8305AA8C9003366AA /* onboardd */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08EFA8BD305AA8C9003366AA /* Build configuration list for PBXNativeTarget "onboardd" */;
+			buildPhases = (
+				08EFA8B5305AA8C9003366AA /* Sources */,
+				08EFA8B6305AA8C9003366AA /* Frameworks */,
+				08EFA8B7305AA8C9003366AA /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				08EFA8BA305AA8C9003366AA /* onboardd */,
+			);
+			name = onboardd;
+			packageProductDependencies = (
+				08EFA8D1305AABC0003366AA /* OnboardCore */,
+			);
+			productName = onboardd;
+			productReference = 08EFA8B9305AA8C9003366AA /* onboardd */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					08EFA8A9305AA8C3003366AA = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					08EFA8B8305AA8C9003366AA = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "IntuneOnboard" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 000000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				08EFA8C9305AAAA1003366AA /* XCLocalSwiftPackageReference "Packages/OnboardCore" */,
+			);
+			preferredProjectObjectVersion = 90;
+			productRefGroup = 000000000000000000000020 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				08EFA8A9305AA8C3003366AA /* IntuneOnboard */,
+				08EFA8B8305AA8C9003366AA /* onboardd */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		08EFA8A8305AA8C3003366AA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		08EFA8A6305AA8C3003366AA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		08EFA8B5305AA8C9003366AA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000011000000 /* Debug configuration for PBXProject "IntuneOnboard" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DRIVERKIT_DEPLOYMENT_TARGET = 27.0;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PROJECT_UNIQUE_VALUE = NNEF7XAD;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		000000000000000012000000 /* Release configuration for PBXProject "IntuneOnboard" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DRIVERKIT_DEPLOYMENT_TARGET = 27.0;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PROJECT_UNIQUE_VALUE = NNEF7XAD;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		08EFA8B2305AA8C5003366AA /* Debug configuration for PBXNativeTarget "IntuneOnboard" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 48;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = be.jordythery.intuneonboard;
+				PRODUCT_NAME = "Intune Onboard";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		08EFA8B3305AA8C5003366AA /* Release configuration for PBXNativeTarget "IntuneOnboard" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 48;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = be.jordythery.intuneonboard;
+				PRODUCT_NAME = "Intune Onboard";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		08EFA8BE305AA8C9003366AA /* Debug configuration for PBXNativeTarget "onboardd" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 48;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = be.jordythery.intuneonboard.daemon;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		08EFA8BF305AA8C9003366AA /* Release configuration for PBXNativeTarget "onboardd" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 48;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = be.jordythery.intuneonboard.daemon;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000010000000 /* Build configuration list for PBXProject "IntuneOnboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000011000000 /* Debug configuration for PBXProject "IntuneOnboard" */,
+				000000000000000012000000 /* Release configuration for PBXProject "IntuneOnboard" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		08EFA8B4305AA8C5003366AA /* Build configuration list for PBXNativeTarget "IntuneOnboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				08EFA8B2305AA8C5003366AA /* Debug configuration for PBXNativeTarget "IntuneOnboard" */,
+				08EFA8B3305AA8C5003366AA /* Release configuration for PBXNativeTarget "IntuneOnboard" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		08EFA8BD305AA8C9003366AA /* Build configuration list for PBXNativeTarget "onboardd" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				08EFA8BE305AA8C9003366AA /* Debug configuration for PBXNativeTarget "onboardd" */,
+				08EFA8BF305AA8C9003366AA /* Release configuration for PBXNativeTarget "onboardd" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		08EFA8C9305AAAA1003366AA /* XCLocalSwiftPackageReference "Packages/OnboardCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/OnboardCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		08EFA8D1305AABC0003366AA /* OnboardCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 08EFA8C9305AAAA1003366AA /* XCLocalSwiftPackageReference "Packages/OnboardCore" */;
+			productName = OnboardCore;
+		};
+		08EFA8D5305AAC55003366AA /* OnboardCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 08EFA8C9305AAAA1003366AA /* XCLocalSwiftPackageReference "Packages/OnboardCore" */;
+			productName = OnboardCore;
+		};
+		08EFA8D7305AAC58003366AA /* OnboardUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 08EFA8C9305AAAA1003366AA /* XCLocalSwiftPackageReference "Packages/OnboardCore" */;
+			productName = OnboardUI;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 000000000000000000000000 /* Project object */;
+}

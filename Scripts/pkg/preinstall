@@ -1,0 +1,16 @@
+#!/bin/zsh
+# preinstall — make reinstalls/upgrades idempotent: stop whatever is running.
+set -u
+
+DAEMON_LABEL="be.jordythery.intuneonboard.daemon"
+AGENT_LABEL="be.jordythery.intuneonboard.agent"
+
+/bin/launchctl bootout "system/$DAEMON_LABEL" 2>/dev/null || true
+
+# Bootout the Aqua agent for the console user, if any.
+CONSOLE_UID="$(/usr/bin/stat -f %u /dev/console 2>/dev/null || echo 0)"
+if [[ "$CONSOLE_UID" -gt 0 ]]; then
+    /bin/launchctl bootout "gui/$CONSOLE_UID/$AGENT_LABEL" 2>/dev/null || true
+fi
+
+exit 0
