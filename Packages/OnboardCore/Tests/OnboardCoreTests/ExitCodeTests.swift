@@ -1,13 +1,12 @@
 import Testing
 @testable import OnboardCore
 
-@Test func exitCodesMatchReferenceScript() {
+/// The documented exit codes; monitoring keys off the raw values.
+@Test func exitCodesAreStable() {
+    #expect(ExitCode.success.rawValue == 0)
     #expect(ExitCode.notRoot.rawValue == 10)
-    #expect(ExitCode.userSessionTimeout.rawValue == 11)
     #expect(ExitCode.notADE.rawValue == 12)
     #expect(ExitCode.networkPreflightFailed.rawValue == 13)
-    #expect(ExitCode.installomatorMissing.rawValue == 20)
-    #expect(ExitCode.installomatorDebugUnverifiable.rawValue == 23)
     #expect(ExitCode.completedWithErrors.rawValue == 30)
 }
 

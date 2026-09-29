@@ -180,7 +180,7 @@ removed when all steps are done. Preview with
 | `icon` | icon | per kind | |
 | `required` | bool | `true` | A failure withholds the completion marker. |
 | `enabled` | bool | `true` | Disabled items are skipped. |
-| `timeout` | int | per kind | Seconds. |
+| `timeout` | int | per kind | Seconds. Provisioning items only. |
 | `validatePath` | string | — | Must exist after the item succeeds, or it fails. |
 
 Onboarding items also accept `mode` (`automatic` or `interactive`) and

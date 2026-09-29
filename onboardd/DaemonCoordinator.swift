@@ -14,7 +14,6 @@ actor DaemonCoordinator {
     }
 
     private var phase: Phase = .idle
-    private var engine: ProvisioningEngine?
     private var configuration: Configuration?
     private var snapshot: ProgressSnapshot?
     private var uiSuppressed = false
@@ -202,7 +201,6 @@ actor DaemonCoordinator {
                 Task { await self?.updateSnapshot(snapshot) }
             }
         )
-        self.engine = engine
         return await engine.run()
     }
 

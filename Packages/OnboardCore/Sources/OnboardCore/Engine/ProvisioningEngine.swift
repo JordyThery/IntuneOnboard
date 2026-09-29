@@ -163,10 +163,6 @@ public actor ProvisioningEngine {
         )
     }
 
-    public func currentSnapshot() -> ProgressSnapshot {
-        snapshot(engineState: state.completedAt != nil ? .completed : .running)
-    }
-
     // MARK: - Internals
 
     /// Logs to the unified log and to `onboard.log`.

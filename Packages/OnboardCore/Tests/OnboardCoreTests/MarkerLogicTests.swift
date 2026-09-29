@@ -40,14 +40,4 @@ import Testing
         #expect(!MarkerLogic.markerEligible(requiredIDs: ["ghost"], records: records))
     }
 
-    @Test func retryOnlyUnfinishedOrFailedRequired() {
-        let records = [
-            "ok": ItemRecord(outcome: .success, status: .done),
-            "skip": ItemRecord(outcome: .skipped, status: .notNeeded),
-            "boom": ItemRecord(outcome: .failed, status: .failed),
-            "slow": ItemRecord(outcome: .running, status: .installing),
-        ]
-        let retry = MarkerLogic.retryIDs(requiredIDs: ["ok", "skip", "boom", "slow", "new"], records: records)
-        #expect(retry == ["boom", "slow", "new"])
-    }
 }

@@ -79,7 +79,6 @@ public struct UserState: Codable, Equatable, Sendable {
 ///         state/device.json
 ///         state/user-<name>.json
 ///         progress.json              (world-readable)
-///         cache/
 ///     ~/Library/Application Support/IntuneOnboard/
 ///         state/user.json
 public struct StateStore: Sendable {
@@ -107,7 +106,6 @@ public struct StateStore: Sendable {
     }
 
     public var stateDirectory: URL { rootDirectory.appending(path: "state") }
-    public var cacheDirectory: URL { rootDirectory.appending(path: "cache") }
     public var progressFileURL: URL { rootDirectory.appending(path: "progress.json") }
     public var deviceStateURL: URL { stateDirectory.appending(path: "device.json") }
 

@@ -96,17 +96,4 @@ public enum MarkerLogic {
         return true
     }
 
-    /// Required items that are unfinished or failed.
-    public static func retryIDs(
-        requiredIDs: some Sequence<String>,
-        records: [String: ItemRecord]
-    ) -> [String] {
-        requiredIDs.filter { id in
-            guard let record = records[id] else { return true }
-            switch record.outcome {
-            case .failed, .pending, .running: return true
-            case .success, .skipped: return false
-            }
-        }
-    }
 }
