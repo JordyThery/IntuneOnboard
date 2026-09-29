@@ -169,9 +169,15 @@ Any one key is enough; with none, no button appears.
 |---|---|---|---|
 | `defaultOptions` | [string] | `NOTIFY=silent`, `BLOCKING_PROCESS_ACTION=ignore`, `INSTALL=force`, `IGNORE_APP_STORE_APPS=yes`, `LOGGING=REQ` | Applied to every installomator item. |
 
-Options must match `^[A-Z_]+=[A-Za-z0-9_.,:/ @-]*$` (they are `eval`'d by
-Installomator). `DEBUG=` is rejected at validation time in any position;
-the app always appends `DEBUG=0` last, so config can never re-enable dry-run.
+Options are `eval`'d by Installomator, so their shape is constrained. A bare
+value must match `^[A-Z_]+=[A-Za-z0-9_.,:/@-]*$` — **no spaces**: `eval`
+parses `KEY=a b` as the assignment `KEY=a` followed by the *command* `b`. A
+value that needs spaces (a `LOGO` path, say) must be quoted inside the string
+— `LOGO="/Library/Application Support/x.png"` — where the same characters
+plus the space are allowed and anything that would end the quote or expand
+inside it (`"`, `` ` ``, `$`, `\`) is not. `DEBUG=` is rejected at validation
+time in any position; the app always appends `DEBUG=0` last, so config can
+never re-enable dry-run.
 
 ### `provisioning`
 
@@ -354,7 +360,7 @@ failed/unfinished required items.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `script` *or* `path` | string | exactly one | `path` must be root-owned, not group/world-writable. Inline scripts run from a 0700 root-only temp dir. |
+| `script` *or* `path` | string | exactly one | `path` must be root-owned, not group/world-writable, and not a symlink. Both kinds run from a staged copy in a 0700 root-only temp dir — for a `path` script the content is read through the verified file, so a swap after the check changes nothing. Consequence: `$0` is the staged copy, so a script must not derive sibling paths from its own location. |
 | `interpreter` | string | `/bin/zsh` | `/bin/bash` allowed; nothing else. |
 | `arguments` | [string] | `[]` | |
 | `successExitCodes` | [int] | `[0]` | |

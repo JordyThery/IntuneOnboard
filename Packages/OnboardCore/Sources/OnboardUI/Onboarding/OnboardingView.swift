@@ -241,7 +241,9 @@ private struct StepCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(step.item.title?.resolved() ?? step.id))
-        .accessibilityValue(isDone ? Text(OnboardingStrings.completedSection) : Text(""))
+        // `verbatim:` — a bare "" is a *localizable* literal, and Xcode's
+        // extraction plants an empty entry in the String Catalog for it.
+        .accessibilityValue(isDone ? Text(OnboardingStrings.completedSection) : Text(verbatim: ""))
         .accessibilityAddTraits(isActive ? [] : .isButton)
     }
 }

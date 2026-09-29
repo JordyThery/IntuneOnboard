@@ -16,13 +16,23 @@ public enum InstallomatorOptions {
     ]
 
     /// Nil when the option is acceptable, otherwise the reason.
+    ///
+    /// A bare value may not contain a space: Installomator's `eval` parses
+    /// `KEY=a b` as the assignment `KEY=a` followed by the *command* `b`, so
+    /// an unquoted space silently turned part of an option into code running
+    /// as root. A value that needs spaces (a LOGO path, say) must arrive
+    /// quoted — `LOGO="/Library/Application Support/x.png"` — which `eval`
+    /// reads back as one assignment. The quoted form still excludes the
+    /// characters that would end the quote or expand inside it.
     public static func violation(of option: String) -> ConfigError.OptionViolation? {
         if option.hasPrefix("DEBUG=") || option == "DEBUG" {
             return .debugForbidden
         }
-        // Regex isn't Sendable, so the literal lives here rather than in a static.
-        let allowedShape = /^[A-Z_]+=[A-Za-z0-9_.,:\/ @-]*$/
-        guard option.wholeMatch(of: allowedShape) != nil else {
+        // Regexes aren't Sendable, so the literals live here rather than in statics.
+        let bareShape = /^[A-Z_]+=[A-Za-z0-9_.,:\/@-]*$/
+        let quotedShape = /^[A-Z_]+="[A-Za-z0-9_.,:\/@ -]*"$/
+        guard option.wholeMatch(of: bareShape) != nil
+                || option.wholeMatch(of: quotedShape) != nil else {
             return .disallowedShape
         }
         return nil

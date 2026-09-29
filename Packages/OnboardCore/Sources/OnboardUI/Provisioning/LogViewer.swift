@@ -45,7 +45,10 @@ public struct LogViewer: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Picker("", selection: $selection) {
+            // `String()` picks the non-localizable overload: a literal ""
+            // is a LocalizedStringKey, and extraction plants an empty entry
+            // in the String Catalog for it.
+            Picker(String(), selection: $selection) {
                 ForEach(LogFile.all) { file in
                     Text(file.title).tag(file.id)
                 }

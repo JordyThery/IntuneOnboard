@@ -94,8 +94,17 @@ nonisolated final class XPCListener: NSObject, NSXPCListenerDelegate, @unchecked
             // only looked like a rejection path that could never run.
             connection.setCodeSigningRequirement(CodeSigning.peerRequirement(teamIdentifier: team))
         } else {
+            #if DEBUG
             // Unsigned/ad-hoc development build: allow, but say so loudly.
             OnboardLog.daemon.warning("XPC: no Team ID on this build — accepting connection WITHOUT code-signing requirement (dev only)")
+            #else
+            // A release build is always Developer ID-signed, so no Team ID
+            // here means a stripped or re-signed binary. Fail closed: this
+            // daemon runs scripts as root, and an unauthenticated peer is
+            // worse than no UI.
+            OnboardLog.daemon.error("XPC: no Team ID on a release build — refusing the connection")
+            return false
+            #endif
         }
 
         connection.exportedInterface = NSXPCInterface(with: OnboardServiceProtocol.self)

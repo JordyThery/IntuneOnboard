@@ -17,24 +17,34 @@ import os
 /// which is a liability there and exactly the behaviour wanted here.
 @MainActor
 enum KioskBlocker {
-    private static var window: NSWindow?
+    private static var windows: [NSWindow] = []
 
-    /// `level` is the card's level; the blocker goes directly beneath it.
+    /// `level` is the card's level; the blockers go directly beneath it.
+    ///
+    /// One blocker **per screen**: the card and the panel-matching are
+    /// primary-display concerns (Setup Assistant lives there), but a click is
+    /// a click on any display, and covering only the first left everything on
+    /// a second one reachable. Re-invoked on screen-parameter changes, so the
+    /// set follows displays being plugged and unplugged.
     static func install(below level: NSWindow.Level) {
-        guard let screen = NSScreen.screens.first else {
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else {
             OnboardLog.app.error("kiosk blocker: no screen to cover")
             return
         }
 
-        let blocker = window ?? make()
-        window = blocker
-        blocker.level = NSWindow.Level(rawValue: level.rawValue - 1)
-        blocker.setFrame(frame(for: screen), display: true)
-        blocker.orderFront(nil)
+        while windows.count < screens.count { windows.append(make()) }
+        while windows.count > screens.count { windows.removeLast().orderOut(nil) }
+
+        for (blocker, screen) in zip(windows, screens) {
+            blocker.level = NSWindow.Level(rawValue: level.rawValue - 1)
+            blocker.setFrame(frame(for: screen), display: true)
+            blocker.orderFront(nil)
+        }
 
         OnboardLog.app.notice("""
-        kiosk blocker: frame=\(blocker.frame.debugDescription, privacy: .public) \
-        level=\(blocker.level.rawValue) canBecomeKey=\(blocker.canBecomeKey)
+        kiosk blocker: \(windows.count) screen(s), first frame=\(windows[0].frame.debugDescription, privacy: .public) \
+        level=\(windows[0].level.rawValue) canBecomeKey=\(windows[0].canBecomeKey)
         """)
     }
 

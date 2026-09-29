@@ -7,10 +7,12 @@ AGENT_LABEL="be.jordythery.intuneonboard.agent"
 
 /bin/launchctl bootout "system/$DAEMON_LABEL" 2>/dev/null || true
 
-# Bootout the Aqua agent for the console user, if any.
-CONSOLE_UID="$(/usr/bin/stat -f %u /dev/console 2>/dev/null || echo 0)"
-if [[ "$CONSOLE_UID" -gt 0 ]]; then
-    /bin/launchctl bootout "gui/$CONSOLE_UID/$AGENT_LABEL" 2>/dev/null || true
-fi
+# Bootout the Aqua agent for every local user, not just the console one:
+# with fast user switching, a background session's agent kept running the
+# old binary across an upgrade. bootout on a session that has no instance
+# is a harmless error, silenced.
+/usr/bin/dscl . -list /Users UniqueID 2>/dev/null | /usr/bin/awk '$2 >= 501 { print $2 }' | while read -r uid; do
+    /bin/launchctl bootout "gui/$uid/$AGENT_LABEL" 2>/dev/null || true
+done
 
 exit 0

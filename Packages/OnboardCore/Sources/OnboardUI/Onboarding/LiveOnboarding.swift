@@ -67,18 +67,22 @@ public enum LiveOnboarding {
 
     // MARK: - Helpers
 
-    /// Bundled first (Contents/Helpers, signed with the app), then
-    /// `/usr/local/bin`, so a broken bundle still has a route if an
-    /// administrator has put the helpers there by hand.
+    /// The bundled helper (Contents/Helpers, signed with the app) — and only
+    /// that. This used to fall back to `/usr/local/bin`, which Homebrew
+    /// routinely leaves writable by the console user: no privilege crossed
+    /// (the helpers run as that same user), but it executed an unpinned,
+    /// unsigned binary and silently papered over a broken bundle. A missing
+    /// helper now fails the step it belongs to, loudly, with a path that
+    /// names the actual problem.
     static func helperPath(_ name: String) -> String {
         let bundled = Bundle.main.bundleURL
             .appending(path: "Contents/Helpers")
             .appending(path: name)
             .path
-        if FileManager.default.isExecutableFile(atPath: bundled) {
-            return bundled
+        if !FileManager.default.isExecutableFile(atPath: bundled) {
+            OnboardLog.app.error("bundled helper missing: \(bundled, privacy: .public) — the step using it will fail")
         }
-        return "/usr/local/bin/\(name)"
+        return bundled
     }
 
     // MARK: - Probes

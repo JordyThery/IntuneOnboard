@@ -26,14 +26,34 @@ actor DaemonCoordinator {
     /// They used to be built with the defaults and the configured values were
     /// simply dropped, so `maxFileSizeMB` and `keepArchives` did nothing at
     /// all — a profile asking for 1 MB let the log reach 3.4 MB unrotated on
-    /// hardware. Read here, once, rather than at every write: the config is
-    /// fixed for the life of the process, and the sinks have to exist before
-    /// the run that would read it.
-    private let fileLog: RotatingFileSink
-    private let installomatorLog: RotatingFileSink
+    /// hardware. Built here so they exist before anything logs, and rebuilt
+    /// by `rebuildSinks` when the profile lands mid-wait: on a Mac's very
+    /// first run the profile arrives *after* this init, and that run — the
+    /// one doing all the work — was the one running on defaults.
+    private var fileLog: RotatingFileSink
+    private var installomatorLog: RotatingFileSink
+    private var sinkSettings: (maxFileSizeMB: Int, keepArchives: Int)
 
     init() {
         let logging = (try? ConfigLoader.load())?.logging ?? Configuration.Logging()
+        sinkSettings = (logging.maxFileSizeMB, logging.keepArchives)
+        fileLog = RotatingFileSink(
+            fileURL: URL(filePath: "/var/log/IntuneOnboard/onboard.log"),
+            maxFileSizeMB: logging.maxFileSizeMB,
+            keepArchives: logging.keepArchives
+        )
+        installomatorLog = RotatingFileSink(
+            fileURL: URL(filePath: "/var/log/IntuneOnboard/onboard-installomator.log"),
+            maxFileSizeMB: logging.maxFileSizeMB,
+            keepArchives: logging.keepArchives
+        )
+    }
+
+    /// Replaces the sinks when the profile's logging settings differ from the
+    /// ones the sinks were built with. Cheap: a sink opens its file lazily.
+    private func rebuildSinks(logging: Configuration.Logging) {
+        guard (logging.maxFileSizeMB, logging.keepArchives) != sinkSettings else { return }
+        sinkSettings = (logging.maxFileSizeMB, logging.keepArchives)
         fileLog = RotatingFileSink(
             fileURL: URL(filePath: "/var/log/IntuneOnboard/onboard.log"),
             maxFileSizeMB: logging.maxFileSizeMB,
@@ -48,8 +68,41 @@ actor DaemonCoordinator {
 
     // MARK: - Main run
 
+    /// The exit verdict as of the latest finished engine pass — a retry that
+    /// runs after `run()` returned replaces it.
+    private var latestExitCode: Int32 = ExitCode.success.rawValue
+    /// Engine passes started over XPC after `run()` returned. Non-zero means
+    /// the process must not exit: root work is in flight.
+    private var retriesInFlight = 0
+
     /// The full daemon run; returns the process exit code.
     func run() async -> Int32 {
+        latestExitCode = await performRun()
+        return latestExitCode
+    }
+
+    /// What the process should exit with, once nothing is in flight.
+    ///
+    /// main.swift used to sleep five seconds after `run()` and exit — but a
+    /// Try again over XPC lands *after* `run()` has returned (its guard needs
+    /// `phase == .finished`), so on a settled Mac every accepted retry started
+    /// inside that window and the `exit()` killed its engine pass mid-item:
+    /// root work terminated abruptly, invisibly, and the next spawn quietly
+    /// re-ran it. The grace period stays (the UI needs a moment to pull the
+    /// final snapshot); it just re-arms for as long as retries keep arriving.
+    func settledExitCode() async -> Int32 {
+        while true {
+            try? await Task.sleep(for: .seconds(5))
+            if retriesInFlight == 0 { return latestExitCode }
+            log("an engine pass is in flight — holding the exit until it finishes")
+            while retriesInFlight > 0 {
+                try? await Task.sleep(for: .seconds(1))
+            }
+            // Loop: a fresh grace period, in case another retry follows.
+        }
+    }
+
+    private func performRun() async -> Int32 {
         log("onboardd run starting")
 
         // A finished device short-circuits before anything else — in
@@ -128,6 +181,10 @@ actor DaemonCoordinator {
             return ExitCode.completedWithErrors.rawValue
         }
         self.configuration = configuration
+        // On a Mac's first run the profile lands mid-wait, after init built
+        // the sinks from defaults — pick its logging settings up now, before
+        // the run that produces almost all of the log.
+        rebuildSinks(logging: configuration.logging)
 
         // 2. Preflight.
         phase = .preflight
@@ -304,8 +361,13 @@ actor DaemonCoordinator {
         // has usually just fixed what was wrong. The preflight count goes
         // too — the most likely thing they fixed is the network.
         recordPreflightOutcome(failed: false)
+        // Counted so `settledExitCode` holds the process open: this pass runs
+        // after run() returned, and exiting mid-pass kills root work.
+        retriesInFlight += 1
         let result2 = await runEngine(configuration: configuration, clearAttemptCounts: true)
         phase = .finished(result2)
+        latestExitCode = result2.exitCode.rawValue
+        retriesInFlight -= 1
         return true
     }
 

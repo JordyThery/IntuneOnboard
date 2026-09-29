@@ -123,6 +123,112 @@ import Testing
         #expect(result.message?.contains("not owned by root") == true)
     }
 
+    @Test func symlinkedScriptPathRejectedAtRuntime() async {
+        let directory = FileManager.default.temporaryDirectory
+        let target = directory.appending(path: "target-\(UUID().uuidString).sh")
+        let link = directory.appending(path: "link-\(UUID().uuidString).sh")
+        FileManager.default.createFile(atPath: target.path, contents: Data("exit 0".utf8))
+        try? FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        defer {
+            try? FileManager.default.removeItem(at: link)
+            try? FileManager.default.removeItem(at: target)
+        }
+
+        let context = ActionContext(processRunner: LiveProcessRunner(), sleep: { _ in })
+        let spec = ProvisioningItem.ScriptSpec(source: .path(link.path))
+        let item = ProvisioningItem(id: "s", kind: .script(spec), timeout: 30)
+        let result = await ScriptAction.run(item: item, spec: spec, context: context)
+        #expect(result.outcome == .failed)
+        #expect(result.message?.contains("symbolic links") == true)
+    }
+
+    /// The check-then-execute fix reads the script through the descriptor
+    /// that was verified, so what was checked is what runs. `requiredOwner`
+    /// lets the test exercise the pipeline without a root-owned fixture; the
+    /// mode and symlink rules are the production ones.
+    @Test func verifiedContentReadsWhatItChecked() throws {
+        let directory = FileManager.default.temporaryDirectory
+        let file = directory.appending(path: "vc-\(UUID().uuidString).sh")
+        FileManager.default.createFile(
+            atPath: file.path,
+            contents: Data("echo hello".utf8),
+            attributes: [.posixPermissions: 0o700]
+        )
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        #expect(ScriptAction.verifiedContent(of: file.path, requiredOwner: getuid())
+                == .success(Data("echo hello".utf8)))
+        // Wrong owner (root won't own a file this test just made).
+        if case .failure(let reason) = ScriptAction.verifiedContent(of: file.path) {
+            #expect(reason == "not owned by root")
+        } else {
+            Issue.record("a user-owned file must not verify against the root requirement")
+        }
+        // Group-writable is refused even for the right owner.
+        try FileManager.default.setAttributes([.posixPermissions: 0o770], ofItemAtPath: file.path)
+        #expect(ScriptAction.verifiedContent(of: file.path, requiredOwner: getuid())
+                == .failure("group/world-writable"))
+    }
+
+    /// stderr used to be read only after exit, so a child writing more than
+    /// the pipe's ~64 KB buffer blocked on write, could never exit, and was
+    /// reported as a timeout. `set -x` alone produces that much.
+    @Test func chattyStderrScriptStillSucceeds() async {
+        let context = ActionContext(processRunner: LiveProcessRunner(), sleep: { _ in })
+        // ~200 KB to stderr, then a clean exit.
+        let spec = ProvisioningItem.ScriptSpec(source: .inline("""
+        for i in {1..2000}; do
+            printf '%0100d\\n' "$i" >&2
+        done
+        exit 0
+        """))
+        let item = ProvisioningItem(id: "chatty", kind: .script(spec), timeout: 30)
+        let result = await ScriptAction.run(item: item, spec: spec, context: context)
+        #expect(result.outcome == .success, "\(result.message ?? "")")
+    }
+
+    /// A final `status:` line without a trailing newline still reaches the
+    /// handler — flushed at stdout EOF.
+    @Test func unterminatedFinalStatusLineIsFlushed() async {
+        let collected = StatusCollector()
+        let context = ActionContext(
+            processRunner: LiveProcessRunner(),
+            statusTextHandler: { collected.append($0) },
+            sleep: { _ in }
+        )
+        let spec = ProvisioningItem.ScriptSpec(source: .inline("printf 'status: almost'"))
+        let item = ProvisioningItem(id: "s", kind: .script(spec), timeout: 30)
+        _ = await ScriptAction.run(item: item, spec: spec, context: context)
+        #expect(collected.lines() == ["almost"])
+    }
+
+    /// A timeout must take the process *tree*, not just the interpreter:
+    /// killing only zsh left its children — a hung curl, an installer —
+    /// running as root after the item was recorded failed.
+    @Test func timeoutKillsTheWholeProcessTree() async throws {
+        let result = try await LiveProcessRunner().run(
+            executable: "/bin/zsh",
+            arguments: ["-c", "sleep 60 &\necho \"child:$!\"\nsleep 60"],
+            environment: nil,
+            timeout: .seconds(1),
+            lineHandler: nil
+        )
+        #expect(result.timedOut)
+
+        let line = try #require(result.standardOutput
+            .split(separator: "\n")
+            .first { $0.hasPrefix("child:") })
+        let childPID = try #require(pid_t(line.dropFirst("child:".count)))
+
+        // SIGTERM delivery is asynchronous; give it a moment.
+        var alive = true
+        for _ in 0..<20 where alive {
+            alive = kill(childPID, 0) == 0
+            if alive { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(!alive, "the backgrounded child (pid \(childPID)) must not survive the timeout")
+    }
+
     @Test func statusLineParsing() {
         #expect(ScriptAction.statusText(from: "status: Installing fonts") == "Installing fonts")
         #expect(ScriptAction.statusText(from: "  STATUS:  trimmed  ") == "trimmed")

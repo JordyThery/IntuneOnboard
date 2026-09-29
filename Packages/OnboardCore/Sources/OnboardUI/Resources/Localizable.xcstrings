@@ -1,9 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-
-    },
     "%@ (step %lld of %lld)" : {
       "comment" : "What is being installed right now. First the item's name, then its position in the run, then the number of items.",
       "extractionState" : "manual",

@@ -184,7 +184,9 @@ private struct DockChoice: View {
                     .foregroundStyle(.secondary)
             } else {
                 if spec.strategies.count > 1 {
-                    Picker("", selection: $chosen) {
+                    // `String()`, not "": the literal is a LocalizedStringKey
+                    // and extraction plants an empty String Catalog entry.
+                    Picker(String(), selection: $chosen) {
                         ForEach(spec.strategies, id: \.self) { action in
                             Text(OnboardingStrings.dockStrategyLabel(action)).tag(action)
                         }

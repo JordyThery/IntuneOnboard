@@ -208,6 +208,54 @@ final class FakeProcessRunner: ProcessRunning, @unchecked Sendable {
         #expect(try store.loadDeviceState()?.items["bad"]?.attempts == 1)
     }
 
+    /// A `.running` record is a daemon that died mid-item. The failure cap
+    /// only ever saw clean failures, so an item that reliably took the daemon
+    /// down with it re-ran on every spawn, forever. Out of attempts, the
+    /// engine now records the interruption as the failure it was — without
+    /// executing the item again — so the run can settle.
+    @Test func anItemInterruptedAtTheCapIsRecordedFailedNotReRun() async throws {
+        let store = makeStore()
+        defer { try? store.reset() }
+        var seeded = DeviceState()
+        seeded.items["crashy"] = ItemRecord(
+            outcome: .running,
+            status: .running,
+            attempts: ProvisioningEngine.maxAutomaticAttempts
+        )
+        try store.saveDeviceState(seeded)
+
+        let runner = FakeProcessRunner() // would succeed, if it were ever asked
+        let config = configuration(items: [
+            ProvisioningItem(id: "crashy", kind: .installomator(label: "l", options: [])),
+        ])
+        let context = ActionContext(
+            processRunner: runner,
+            installomatorPath: "/fake/i.sh",
+            fileExists: { _ in true },
+            sleep: { _ in }
+        )
+        let result = await ProvisioningEngine(configuration: config, store: store, context: context).run()
+
+        #expect(runner.invocations.isEmpty, "out of attempts — must not execute again")
+        let record = try #require(try store.loadDeviceState()?.items["crashy"])
+        #expect(record.outcome == .failed)
+        #expect(record.attempts == ProvisioningEngine.maxAutomaticAttempts)
+        #expect(result.markerWritten == false)
+        // The verdict now settles: no further automatic work remains.
+        #expect(!ProvisioningEngine.hasAutomaticWorkRemaining(
+            items: config.provisioning?.items ?? [],
+            records: try #require(try store.loadDeviceState()).items
+        ))
+
+        // Below the cap, an interruption is still unfinished work: it re-runs.
+        var young = DeviceState()
+        young.items["crashy"] = ItemRecord(outcome: .running, status: .running, attempts: 1)
+        try store.saveDeviceState(young)
+        _ = await ProvisioningEngine(configuration: config, store: store, context: context).run()
+        #expect(runner.invocations.count == 1)
+        #expect(try store.loadDeviceState()?.items["crashy"]?.outcome == .success)
+    }
+
     /// The item cap stops the item being re-executed; it does not stop the
     /// daemon being re-spawned and running the whole pipeline again. On
     /// hardware that reset the card to "checking this Mac…" every ten

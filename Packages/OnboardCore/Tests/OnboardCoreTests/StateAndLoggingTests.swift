@@ -40,6 +40,32 @@ import Testing
         try store.reset()
         #expect(try store.loadUserState(userName: "jordy") == nil)
     }
+
+    /// A file that exists but will not decode is quarantined, not treated as
+    /// blank: for device.json the difference is the completion marker, and
+    /// "corrupt" silently read as "no state" would re-provision a finished
+    /// Mac. The load still throws (callers use `try?` and start blank), but
+    /// the evidence survives under a name the next load will not read.
+    @Test func corruptStateIsQuarantinedNotBlanked() throws {
+        let store = try makeStore()
+        defer { try? store.reset() }
+
+        try FileManager.default.createDirectory(
+            at: store.deviceStateURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("{not json".utf8).write(to: store.deviceStateURL)
+
+        #expect(throws: (any Error).self) { try store.loadDeviceState() }
+
+        let quarantined = store.deviceStateURL
+            .deletingLastPathComponent()
+            .appending(path: "device.json.corrupt")
+        #expect(FileManager.default.fileExists(atPath: quarantined.path))
+        #expect(!FileManager.default.fileExists(atPath: store.deviceStateURL.path))
+        // And the next load is a clean "no state", not another throw.
+        #expect(try store.loadDeviceState() == nil)
+    }
 }
 
 @Suite struct RotatingFileSinkTests {

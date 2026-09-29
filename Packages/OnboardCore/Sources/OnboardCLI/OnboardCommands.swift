@@ -185,6 +185,11 @@ struct Reset: ParsableCommand {
         guard device || !users.isEmpty else {
             throw ValidationError("Pass --device and/or --user <name>.")
         }
+        // The name lands in a filename (`state/user-<name>.json`); a stray
+        // separator could point the removal somewhere else entirely.
+        for user in users where user.contains("/") || user.contains("..") {
+            throw ValidationError("Not a valid account name: \(user)")
+        }
     }
 
     func run() throws {

@@ -128,6 +128,22 @@ public actor ProvisioningEngine {
                 log("item \(item.id): failed \(previous.attempts) times, not retrying automatically — use Try again")
                 continue
             }
+            // A `.running` record means a previous daemon died mid-item —
+            // launchd re-spawns us within seconds, so an item that takes the
+            // daemon down with it would otherwise re-run forever: the cap
+            // above only ever saw clean failures. Out of attempts, the
+            // interruption *is* the verdict; record it as the failure it was,
+            // or the card shows a spinner for the life of the settled run.
+            if let previous, previous.outcome == .running, previous.attempts >= Self.maxAutomaticAttempts {
+                log("item \(item.id): interrupted \(previous.attempts) times, not retrying automatically — use Try again")
+                setRecord(for: item.id, ItemRecord(
+                    outcome: .failed,
+                    status: .failed,
+                    message: "interrupted mid-run \(previous.attempts) times",
+                    attempts: previous.attempts
+                ))
+                continue
+            }
 
             let attempts = (previous?.attempts ?? 0) + 1
             currentItemID = item.id

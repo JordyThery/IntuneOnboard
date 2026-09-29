@@ -172,7 +172,28 @@ public struct StateStore: Sendable {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(type, from: data)
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            // A file that exists but will not decode is not the same as no
+            // file — for device.json the difference is the completion marker,
+            // and treating "corrupt" as "blank" silently re-provisions a
+            // finished Mac. Every caller reaches this through `try?`, so the
+            // consequence is decided here: keep the evidence under a name the
+            // next load will not read, say so loudly, and only then let the
+            // caller start blank. (Writes are atomic and the files root-only,
+            // so arriving here means tampering or something genuinely broken.)
+            let quarantined = url.deletingLastPathComponent()
+                .appending(path: url.lastPathComponent + ".corrupt")
+            try? FileManager.default.removeItem(at: quarantined)
+            try? FileManager.default.moveItem(at: url, to: quarantined)
+            OnboardLog.daemon.error("""
+            \(url.lastPathComponent, privacy: .public) exists but does not decode \
+            (\(error.localizedDescription, privacy: .public)) — moved aside as \
+            \(quarantined.lastPathComponent, privacy: .public); starting from blank state
+            """)
+            throw error
+        }
     }
 
     private func save<T: Encodable>(_ value: T, to url: URL) throws {

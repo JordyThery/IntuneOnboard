@@ -40,10 +40,12 @@ monitor.start()
 // The run itself; the process exits with the engine's verdict. launchd does
 // not relaunch on success (one-shot semantics).
 Task { @MainActor in
-    let exitCode = await coordinator.run()
-    // Give the UI a moment to pull the final snapshot before we vanish.
-    try? await Task.sleep(for: .seconds(5))
-    exit(exitCode)
+    _ = await coordinator.run()
+    // The grace before exiting lives in the coordinator: it gives the UI a
+    // moment to pull the final snapshot, and — unlike a plain sleep here — it
+    // holds the process open while a Try again that arrived over XPC is still
+    // running the engine. Exiting killed that pass mid-item once.
+    exit(await coordinator.settledExitCode())
 }
 
 RunLoop.main.run()

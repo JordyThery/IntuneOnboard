@@ -17,10 +17,11 @@ DAEMON_LABEL="be.jordythery.intuneonboard.daemon"
 AGENT_LABEL="be.jordythery.intuneonboard.agent"
 
 /bin/launchctl bootout "system/$DAEMON_LABEL" 2>/dev/null || true
-CONSOLE_UID="$(/usr/bin/stat -f %u /dev/console 2>/dev/null || echo 0)"
-if [ "$CONSOLE_UID" -gt 0 ]; then
-    /bin/launchctl bootout "gui/$CONSOLE_UID/$AGENT_LABEL" 2>/dev/null || true
-fi
+# Every local user's session, not just the console one: with fast user
+# switching a background session's agent would survive the uninstall.
+/usr/bin/dscl . -list /Users UniqueID 2>/dev/null | /usr/bin/awk '$2 >= 501 { print $2 }' | while read -r uid; do
+    /bin/launchctl bootout "gui/$uid/$AGENT_LABEL" 2>/dev/null || true
+done
 
 /bin/rm -f "/Library/LaunchDaemons/$DAEMON_LABEL.plist"
 /bin/rm -f "/Library/LaunchAgents/$AGENT_LABEL.plist"
