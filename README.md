@@ -1,136 +1,92 @@
 # Intune Onboard
 
-A profile-driven macOS enrollment experience for Macs managed by Microsoft
-Intune: a native SwiftUI app plus a root daemon replacing a swiftDialog-based
-shell script.
-
-## The two stages
-
-These two words are the product's vocabulary, and they are used everywhere —
-config keys, type names, log lines, documentation:
+Profile-driven enrollment for Macs managed by Microsoft Intune: a SwiftUI app
+and a root daemon, configured by a single configuration profile.
 
 | Stage | When | Runs as | Does |
 |---|---|---|---|
-| **Provisioning** | During Setup Assistant, before any user exists | root (`onboardd`) | Installomator labels, root scripts, waits, naming the Mac |
-| **Onboarding** | At first login, per user | the signed-in user | wallpaper, Dock, default apps, "open this" steps, admin demotion |
+| **Provisioning** | During Setup Assistant | root (`onboardd`) | Installomator labels, scripts, waits, device naming |
+| **Onboarding** | At first login | the signed-in user | Wallpaper, Dock, default apps, open-and-sign-in steps, admin demotion |
 
-The profile mirrors them: a `provisioning` dictionary and an `onboarding`
-dictionary, each with its own `items`.
+The profile has a `provisioning` and an `onboarding` dictionary; either may be
+omitted.
 
-## Layout
+## Requirements
 
-| Path | Contents |
+- macOS 15 or later.
+- Automated Device Enrollment for the provisioning stage.
+- Settings delivered as a device-assigned **Custom** configuration profile.
+
+## Documentation
+
+| Document | Contents |
 |---|---|
-| `IntuneOnboard/` | SwiftUI app target → `Intune Onboard.app` |
-| `onboardd/` | Root daemon (command-line tool, embedded in the app bundle) |
-| `Packages/OnboardCore/` | Local package: `OnboardCore` (models, no UI), `OnboardCLI` (the `onboardd` subcommands) and `OnboardUI` (views) |
-| `LaunchServices/` | LaunchDaemon / LaunchAgent plists |
-| `Scripts/` | `build-pkg.sh` and the pkg's pre/postinstall, plus `uninstall.sh`, `make-example-profile.sh`, `vendor-helpers.sh`, `verify-installomator.sh` |
-| `Deploy/` | What an administrator uploads: the settings profile, the background-items profile, the Intune custom attribute |
-| `Docs/` | `GettingStarted.md` (start here), `Configuration.md` (every profile key), `Operations.md` (deploying), `TestRunbook.md`, plus behaviour and Setup Assistant findings |
-| `Vendor/` | Installomator, desktoppr, dockutil, utiluti — pinned, with checksums and licences |
+| [`Docs/GettingStarted.md`](Docs/GettingStarted.md) | First deployment, step by step |
+| [`Docs/Configuration.md`](Docs/Configuration.md) | Every profile key |
+| [`Docs/Operations.md`](Docs/Operations.md) | What to deploy, status reporting, troubleshooting |
+| [`Deploy/`](Deploy/) | Example profiles, background-items profile, Intune custom attribute |
+
+## Trying it
+
+Both stages run without a profile or daemon, against an in-memory Mac:
+
+```sh
+open -a "Intune Onboard.app" --args --demo provisioning
+open -a "Intune Onboard.app" --args --demo onboarding
+```
 
 ## Building
 
 Open `IntuneOnboard.xcodeproj` and build the `IntuneOnboard` scheme, or run
-`Scripts/build-pkg.sh` for a pkg (unsigned locally; set `TEAM_ID`,
-`DEVELOPER_ID_APP`, `DEVELOPER_ID_INSTALLER`, `NOTARY_PROFILE` for a
-signed + notarized build).
+`Scripts/build-pkg.sh` for an installer package. Set `TEAM_ID`,
+`DEVELOPER_ID_APP`, `DEVELOPER_ID_INSTALLER` and `NOTARY_PROFILE` for a signed,
+notarized build. See [`Docs/TestRunbook.md`](Docs/TestRunbook.md).
 
-Either stage runs without a device, against an in-memory Mac that nothing
-real is changed on:
-
-```sh
-# provisioning, as a scripted timeline including a failure and a retry
-open -a "Intune Onboard.app" --args --demo provisioning
-
-# onboarding, fully interactive; --focus [blur] previews windowPosition: focus
-open -a "Intune Onboard.app" --args --demo onboarding
-```
-
-## Deploying
-
-**New to this? `Docs/GettingStarted.md`** walks from "watch it run on your own
-Mac" to a real enrollment in three steps, with nothing at risk until the last
-one.
-
-`Docs/Operations.md` covers what to upload and in what order. In short: the
-settings profile first, then the package, then the background-items profile
-and the custom attribute.
-
-The interface is English, Dutch and French, following the Mac's language.
-Text you supply in the profile carries its own translations — see the
-Languages section of `Docs/Configuration.md`.
+| Path | Contents |
+|---|---|
+| `IntuneOnboard/` | App target |
+| `onboardd/` | Root daemon, embedded in the app bundle |
+| `Packages/OnboardCore/` | `OnboardCore` (logic), `OnboardCLI` (`onboardd` subcommands), `OnboardUI` (views) |
+| `LaunchServices/` | LaunchDaemon and LaunchAgent |
+| `Scripts/` | Packaging, uninstall and vendoring scripts |
+| `Vendor/` | Bundled tools, pinned by checksum |
 
 ## Status
 
-**1.0.1 is released but has not yet been used in a production rollout.** It is
-extensively tested — every configuration key and failure path exercised across
-roughly twenty wiped ADE enrollments on real hardware — but that testing was
-done by one person, in one tenant, on a small number of Mac models. Treat it as
-a capable 1.0 rather than as battle-hardened, and pilot it on a handful of Macs
-before pointing it at a fleet.
+1.0.1 is the current release. It has been tested extensively on hardware in a
+single tenant but has not yet been used in a production rollout; pilot it
+before deploying fleet-wide. Unreleased changes are listed in
+[`CHANGELOG.md`](CHANGELOG.md).
 
-The next release (see **Unreleased** in `CHANGELOG.md`) comes out of a code
-review of the daemon's process-lifetime paths. Its fixes are covered by 266
-unit tests and have passed a test pass on a macOS VM — the Try again retry,
-upgrading under fast user switching, `script` items by `path`, and a
-provisioning-only profile. It still wants one wiped ADE enrollment on
-hardware before it is tagged.
+Known limitations:
 
-Known gaps, none of which have run anywhere real:
+- Not yet verified on hardware: expiry of the ten-minute configuration wait,
+  a second display during Setup Assistant, fast user switching while the
+  provisioning window is shown, and onboarding-only profiles.
+- `validate-config` reports `OK — 0 items` for a wrapped `.mobileconfig`;
+  validate the bare `.plist` instead.
 
-- Expiry of the ten-minute wait for a late configuration profile.
-- A second display during Setup Assistant, and switching users while the
-  provisioning card is up.
-- Onboarding-only deployments (omitting the `provisioning` dictionary). They
-  work by design and are unit-tested, but have not run on a device.
-  Provisioning-only has.
-- `validate-config` reports a misleading `OK — 0 items` when handed a wrapped
-  `.mobileconfig` rather than the bare plist. Feed it the `.plist`.
+Profile scripts run as root. Configuration is read only from managed
+preferences, and the app and daemon verify each other's code signature. The
+code has had no external security review.
 
-The root daemon runs scripts from the profile as root by design. That path has
-had an internal code review but no external security review; the design notes in
-`Docs/SetupAssistant-Findings.md` explain the boundaries it does enforce
-(configuration read only from managed preferences, mutual code-signature
-checks on the XPC connection, privileged operations resolved from the daemon's
-own configuration rather than from the caller). Review it yourself before
-deploying it somewhere that matters.
-
-Issues and pull requests are welcome. If you are reporting a problem from a
-real enrollment, the export from the ⌘L log panel is the most useful thing to
-attach.
+Issues and pull requests are welcome. For enrollment problems, attach the
+export from the log panel (⌘L).
 
 ## Acknowledgements
 
-Intune Onboard stands on other people's work, and would have been a much
-poorer tool without it.
+Inspired by **Jamf Setup Manager** and **Jamf Setup Checklist**. Intune Onboard
+is an independent implementation and shares no code with either.
 
-**Inspiration.** The shape of this product — a card that narrates provisioning
-during Setup Assistant, and a per-user checklist at first login — follows the
-path cut by **Jamf Setup Manager** and **Jamf Setup Checklist**. They
-demonstrated that enrollment does not have to be a blank screen, and they set
-the bar this was built to reach for Intune-managed fleets. Intune Onboard is
-an independent implementation and shares no code with either, but the debt for
-the idea is theirs and worth saying plainly.
+Bundled, unmodified, under the Apache License 2.0:
 
-**Bundled tools.** Four command-line tools do a great deal of the actual work.
-All four are used unmodified, under the Apache License 2.0, with their licences
-shipped inside the app bundle:
-
-| Tool | Upstream | Pinned | What it does here |
+| Tool | Upstream | Version | Used for |
 |---|---|---|---|
-| **Installomator** | [Installomator/Installomator](https://github.com/Installomator/Installomator) | `fb2b233` | Installs every app a provisioning `installomator` item names |
-| **dockutil** | [kcrawford/dockutil](https://github.com/kcrawford/dockutil) | 3.1.3 | Reads and rewrites the user's Dock |
-| **desktoppr** | [scriptingosx/desktoppr](https://github.com/scriptingosx/desktoppr) | v0.5 | Sets the wallpaper on every display |
-| **utiluti** | [scriptingosx/utiluti](https://github.com/scriptingosx/utiluti) | v1.5 | Sets default browser, mail client and per-UTI handlers |
-
-Installomator in particular is the reason app installation is a one-line
-profile entry rather than a per-app scripting problem. It is pinned by
-checksum to a reviewed snapshot (`Vendor/Installomator/PINNED_SHA256`), so
-refreshing it is a deliberate, reviewable change rather than silent drift.
+| Installomator | [Installomator/Installomator](https://github.com/Installomator/Installomator) | `fb2b233` | App installation |
+| dockutil | [kcrawford/dockutil](https://github.com/kcrawford/dockutil) | 3.1.3 | Dock |
+| desktoppr | [scriptingosx/desktoppr](https://github.com/scriptingosx/desktoppr) | v0.5 | Wallpaper |
+| utiluti | [scriptingosx/utiluti](https://github.com/scriptingosx/utiluti) | v1.5 | Default apps |
 
 ## Licence
 
-MIT — see `LICENSE`. The four vendored tools remain under Apache-2.0; their
-licences ship inside the app bundle and are listed at the end of `LICENSE`.
+MIT. See [`LICENSE`](LICENSE); bundled tools retain their own licences.
