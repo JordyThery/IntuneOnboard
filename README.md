@@ -64,15 +64,30 @@ Languages section of `Docs/Configuration.md`.
 
 ## Status
 
-Released and running in production. `CHANGELOG.md` records what shipped.
+**1.0.1 is released but has not yet been used in a production rollout.** It is
+extensively tested — 253 unit tests, and every configuration key and failure
+path exercised across roughly twenty wiped ADE enrollments on real hardware —
+but that testing was done by one person, in one tenant, on a small number of
+Mac models. Treat it as a capable 1.0 rather than as battle-hardened, and pilot
+it on a handful of Macs before pointing it at a fleet.
 
-Two behaviours are implemented and unit-tested but have not been exercised on
-hardware, and are worth knowing about before a wide rollout: expiry of the
-ten-minute wait for a late configuration profile, and behaviour across
-multiple displays with fast user switching. Provisioning-only and
-onboarding-only deployments (omitting either dictionary from the profile)
-work by design and are unit-tested, but have likewise not been run on a
-device.
+Known gaps, none of which have run anywhere real:
+
+- Expiry of the ten-minute wait for a late configuration profile.
+- Multiple displays, and fast user switching with the card up.
+- Provisioning-only and onboarding-only deployments (omitting either
+  dictionary). These work by design and are unit-tested, but have not run on
+  a device.
+- `validate-config` reports a misleading `OK — 0 items` when handed a wrapped
+  `.mobileconfig` rather than the bare plist. Feed it the `.plist`.
+
+The root daemon runs scripts from the profile as root by design. That path has
+had no external security review; the design notes in
+`Docs/SetupAssistant-Findings.md` explain the boundaries it does enforce
+(configuration read only from managed preferences, mutual code-signature
+checks on the XPC connection, privileged operations resolved from the daemon's
+own configuration rather than from the caller). Review it yourself before
+deploying it somewhere that matters.
 
 Issues and pull requests are welcome. If you are reporting a problem from a
 real enrollment, the export from the ⌘L log panel is the most useful thing to
