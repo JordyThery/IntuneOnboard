@@ -202,6 +202,26 @@ import Testing
         #expect(collected.lines() == ["almost"])
     }
 
+    /// A script that exits leaving a background child holding the pipes open
+    /// keeps EOF from ever arriving — the drain must be bounded, or the item
+    /// hangs for as long as the grandchild lives. The run should return
+    /// shortly after the parent exits, with the output it produced intact.
+    @Test func backgroundChildHoldingThePipeDoesNotHangTheRun() async throws {
+        let started = ContinuousClock.now
+        let result = try await LiveProcessRunner().run(
+            executable: "/bin/zsh",
+            arguments: ["-c", "sleep 30 &\necho done\nexit 0"],
+            environment: nil,
+            timeout: .seconds(60),
+            lineHandler: nil
+        )
+        #expect(result.exitCode == 0)
+        #expect(!result.timedOut)
+        #expect(result.standardOutput.contains("done"))
+        #expect(ContinuousClock.now - started < .seconds(15),
+                "must return on the bounded EOF wait, not the grandchild's lifetime")
+    }
+
     /// A timeout must take the process *tree*, not just the interpreter:
     /// killing only zsh left its children — a hung curl, an installer —
     /// running as root after the item was recorded failed.

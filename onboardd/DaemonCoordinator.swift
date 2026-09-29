@@ -68,38 +68,26 @@ actor DaemonCoordinator {
 
     // MARK: - Main run
 
-    /// The exit verdict as of the latest finished engine pass — a retry that
-    /// runs after `run()` returned replaces it.
-    private var latestExitCode: Int32 = ExitCode.success.rawValue
-    /// Engine passes started over XPC after `run()` returned. Non-zero means
-    /// the process must not exit: root work is in flight.
-    private var retriesInFlight = 0
-
-    /// The full daemon run; returns the process exit code.
-    func run() async -> Int32 {
-        latestExitCode = await performRun()
-        return latestExitCode
-    }
-
-    /// What the process should exit with, once nothing is in flight.
-    ///
-    /// main.swift used to sleep five seconds after `run()` and exit — but a
-    /// Try again over XPC lands *after* `run()` has returned (its guard needs
+    /// Holds the exit while a Try again requested over XPC is still running
+    /// the engine. main.swift used to sleep five seconds after `run()` and
+    /// exit — but a retry lands *after* `run()` has returned (its guard needs
     /// `phase == .finished`), so on a settled Mac every accepted retry started
     /// inside that window and the `exit()` killed its engine pass mid-item:
     /// root work terminated abruptly, invisibly, and the next spawn quietly
-    /// re-ran it. The grace period stays (the UI needs a moment to pull the
-    /// final snapshot); it just re-arms for as long as retries keep arriving.
+    /// re-ran it. The race lives in `ExitGate` (OnboardCore) so it is unit
+    /// tested; this file keeps only the glue.
+    private let exitGate = ExitGate(initialExitCode: ExitCode.success.rawValue)
+
+    /// The full daemon run; returns the process exit code.
+    func run() async -> Int32 {
+        let exitCode = await performRun()
+        await exitGate.record(exitCode: exitCode)
+        return exitCode
+    }
+
+    /// What the process should exit with, once nothing is in flight.
     func settledExitCode() async -> Int32 {
-        while true {
-            try? await Task.sleep(for: .seconds(5))
-            if retriesInFlight == 0 { return latestExitCode }
-            log("an engine pass is in flight — holding the exit until it finishes")
-            while retriesInFlight > 0 {
-                try? await Task.sleep(for: .seconds(1))
-            }
-            // Loop: a fresh grace period, in case another retry follows.
-        }
+        await exitGate.settledExitCode()
     }
 
     private func performRun() async -> Int32 {
@@ -361,13 +349,13 @@ actor DaemonCoordinator {
         // has usually just fixed what was wrong. The preflight count goes
         // too — the most likely thing they fixed is the network.
         recordPreflightOutcome(failed: false)
-        // Counted so `settledExitCode` holds the process open: this pass runs
-        // after run() returned, and exiting mid-pass kills root work.
-        retriesInFlight += 1
+        // Registered with the gate so `settledExitCode` holds the process
+        // open: this pass runs after run() returned, and exiting mid-pass
+        // kills root work.
+        await exitGate.beginWork()
         let result2 = await runEngine(configuration: configuration, clearAttemptCounts: true)
         phase = .finished(result2)
-        latestExitCode = result2.exitCode.rawValue
-        retriesInFlight -= 1
+        await exitGate.endWork(exitCode: result2.exitCode.rawValue)
         return true
     }
 
