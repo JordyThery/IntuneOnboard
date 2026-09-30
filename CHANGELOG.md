@@ -16,6 +16,9 @@
 - The Setup Assistant click blocker covered only the primary display.
 - Upgrades and `uninstall.sh` left the login agent running in background user
   sessions.
+- `onboardd reset --user` deleted a file that is never written, so it never
+  reset anything. It now removes the user's `user.json`, the file `status`
+  reads.
 
 ### Changed
 

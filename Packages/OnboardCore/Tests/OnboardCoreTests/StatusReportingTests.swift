@@ -97,4 +97,15 @@ import Testing
                 != "provisioning: not applicable (requireADE)"
         )
     }
+
+    /// `reset --user` removes the file `status` reads, in the user's home.
+    @Test func resetTargetsTheFileStatusReads() throws {
+        let user = NSUserName()
+        let reset = try #require(Reset.userStateFile(for: user))
+        let status = try #require(StateStore.forUser(named: user)).userStateURL()
+        #expect(reset == status)
+        #expect(reset.path.hasPrefix(NSHomeDirectoryForUser(user) ?? "?"))
+        #expect(reset.lastPathComponent == "user.json")
+        #expect(Reset.userStateFile(for: "no-such-account-\(UUID().uuidString)") == nil)
+    }
 }

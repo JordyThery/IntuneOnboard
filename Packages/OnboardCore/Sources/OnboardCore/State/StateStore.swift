@@ -77,7 +77,6 @@ public struct UserState: Codable, Equatable, Sendable {
 ///
 ///     /Library/Application Support/IntuneOnboard/
 ///         state/device.json
-///         state/user-<name>.json
 ///         progress.json              (world-readable)
 ///     ~/Library/Application Support/IntuneOnboard/
 ///         state/user.json
@@ -109,12 +108,8 @@ public struct StateStore: Sendable {
     public var progressFileURL: URL { rootDirectory.appending(path: "progress.json") }
     public var deviceStateURL: URL { stateDirectory.appending(path: "device.json") }
 
-    public func userStateURL(userName: String? = nil) -> URL {
-        if let userName {
-            stateDirectory.appending(path: "user-\(userName).json")
-        } else {
-            stateDirectory.appending(path: "user.json")
-        }
+    public func userStateURL() -> URL {
+        stateDirectory.appending(path: "user.json")
     }
 
     // MARK: - Load / save
@@ -127,12 +122,12 @@ public struct StateStore: Sendable {
         try save(state, to: deviceStateURL)
     }
 
-    public func loadUserState(userName: String? = nil) throws -> UserState? {
-        try load(UserState.self, from: userStateURL(userName: userName))
+    public func loadUserState() throws -> UserState? {
+        try load(UserState.self, from: userStateURL())
     }
 
-    public func saveUserState(_ state: UserState, userName: String? = nil) throws {
-        try save(state, to: userStateURL(userName: userName))
+    public func saveUserState(_ state: UserState) throws {
+        try save(state, to: userStateURL())
     }
 
     public func reset() throws {

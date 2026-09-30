@@ -173,7 +173,7 @@ struct Reset: ParsableCommand {
         guard device || !users.isEmpty else {
             throw ValidationError("Pass --device and/or --user <name>.")
         }
-        // Used in a file name.
+        // Account names never contain these.
         for user in users where user.contains("/") || user.contains("..") {
             throw ValidationError("Not a valid account name: \(user)")
         }
@@ -190,7 +190,10 @@ struct Reset: ParsableCommand {
             print("device state removed")
         }
         for user in users {
-            let url = store.userStateURL(userName: user)
+            guard let url = Self.userStateFile(for: user) else {
+                print("no such account: \(user)")
+                continue
+            }
             if FileManager.default.fileExists(atPath: url.path) {
                 try FileManager.default.removeItem(at: url)
                 print("user state removed: \(user)")
@@ -198,5 +201,11 @@ struct Reset: ParsableCommand {
                 print("no state for user: \(user)")
             }
         }
+    }
+
+    /// The user's onboarding state in their home directory: the file the app
+    /// writes and `status` reads. nil when the account has no home directory.
+    static func userStateFile(for user: String) -> URL? {
+        StateStore.forUser(named: user)?.userStateURL()
     }
 }

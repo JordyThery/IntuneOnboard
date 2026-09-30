@@ -32,13 +32,13 @@ import Testing
 
         var state = UserState()
         state.appliedWallpaperSHA256 = String(repeating: "ab", count: 32)
-        try store.saveUserState(state, userName: "jordy")
+        try store.saveUserState(state)
 
-        let loaded = try #require(try store.loadUserState(userName: "jordy"))
+        let loaded = try #require(try store.loadUserState())
         #expect(loaded.appliedWallpaperSHA256?.count == 64)
 
         try store.reset()
-        #expect(try store.loadUserState(userName: "jordy") == nil)
+        #expect(try store.loadUserState() == nil)
     }
 
     /// An undecodable file is moved aside and the load throws, rather than
@@ -246,8 +246,8 @@ import Testing
         defer { try? store.reset() }
 
         let when = Date(timeIntervalSince1970: 1_790_000_000)
-        try store.saveUserState(UserState(dismissedProvisioningRunAt: when), userName: "someone")
-        let loaded = try #require(try store.loadUserState(userName: "someone"))
+        try store.saveUserState(UserState(dismissedProvisioningRunAt: when))
+        let loaded = try #require(try store.loadUserState())
         #expect(loaded.dismissedProvisioningRunAt == when)
     }
 }
