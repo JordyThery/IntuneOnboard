@@ -87,6 +87,10 @@ Bundled, unmodified, under the Apache License 2.0:
 | desktoppr | [scriptingosx/desktoppr](https://github.com/scriptingosx/desktoppr) | v0.5 | Wallpaper |
 | utiluti | [scriptingosx/utiluti](https://github.com/scriptingosx/utiluti) | v1.5 | Default apps |
 
+## Support
+
+If Intune Onboard saves you time, you can [buy me a coffee](https://buymeacoffee.com/jordythery). ☕️
+
 ## Licence
 
 MIT. See [`LICENSE`](LICENSE); bundled tools retain their own licences.
