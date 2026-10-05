@@ -53,9 +53,9 @@ notarized build. See [`Docs/TestRunbook.md`](Docs/TestRunbook.md).
 
 ## Status
 
-1.0.1 is the current release. It has been tested extensively on hardware in a
+1.0.2 is the current release. It has been tested extensively on hardware in a
 single tenant but has not yet been used in a production rollout; pilot it
-before deploying fleet-wide. Unreleased changes are listed in
+before deploying fleet-wide. Changes are listed in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 Known limitations:
