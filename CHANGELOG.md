@@ -19,6 +19,8 @@
 - `onboardd reset --user` deleted a file that is never written, so it never
   reset anything. It now removes the user's `user.json`, the file `status`
   reads.
+- With `windowPosition: focus`, the backdrop kept showing the previous
+  wallpaper after the wallpaper step until the Dock restarted.
 
 ### Changed
 

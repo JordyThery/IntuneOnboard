@@ -61,8 +61,8 @@ before deploying fleet-wide. Unreleased changes are listed in
 Known limitations:
 
 - Not yet verified on hardware: expiry of the ten-minute configuration wait,
-  a second display during Setup Assistant, fast user switching while the
-  provisioning window is shown, and onboarding-only profiles.
+  fast user switching while the provisioning window is shown, and
+  onboarding-only profiles.
 - `validate-config` reports `OK — 0 items` for a wrapped `.mobileconfig`;
   validate the bare `.plist` instead.
 

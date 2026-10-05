@@ -70,6 +70,13 @@ public enum LiveOnboarding {
 
     // MARK: - Probes
 
+    /// The main display's wallpaper, as reported by desktoppr. Unlike
+    /// `NSWorkspace.desktopImageURL(for:)`, it reflects a change made by
+    /// another process straight away.
+    public static func currentWallpaperPath() async -> String? {
+        await probes().currentWallpaperPath()
+    }
+
     static func probes(runner: any ProcessRunning = LiveProcessRunner()) -> OnboardingProbes {
         let desktoppr = helperPath("desktoppr")
         return OnboardingProbes(

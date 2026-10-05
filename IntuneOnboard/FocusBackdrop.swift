@@ -14,6 +14,8 @@ enum FocusBackdrop {
 
     private static var windows: [NSWindow] = []
     private static var appearance: (background: IconSpec?, blur: Bool) = (nil, false)
+    /// The wallpaper reported by desktoppr after a step; nil until the first refresh.
+    private static var wallpaperPath: String?
 
     /// Shows the backdrop, or rebuilds it for the current screens.
     static func show(below level: NSWindow.Level, background: IconSpec?, blur: Bool) {
@@ -42,17 +44,22 @@ enum FocusBackdrop {
 
     /// Updates a wallpaper-based backdrop after the wallpaper changes,
     /// without recreating the windows.
-    static func refreshBackground() {
+    static func refreshBackground(wallpaperPath path: String?) {
+        if let path { wallpaperPath = path }
         guard !windows.isEmpty, appearance.background == nil else { return }
         for window in windows {
             guard let screen = window.screen ?? NSScreen.screens.first,
                   let host = window.contentView as? NSHostingView<BackdropView>
             else { continue }
-            host.rootView = BackdropView(
-                image: NSWorkspace.shared.desktopImageURL(for: screen).map { .path($0.path) },
-                blur: appearance.blur
-            )
+            host.rootView = BackdropView(image: wallpaper(for: screen), blur: appearance.blur)
         }
+    }
+
+    /// `NSWorkspace` can report the previous wallpaper for a while after
+    /// another process changes it, so a path from desktoppr takes precedence.
+    private static func wallpaper(for screen: NSScreen) -> IconSpec? {
+        if let wallpaperPath { return .path(wallpaperPath) }
+        return NSWorkspace.shared.desktopImageURL(for: screen).map { .path($0.path) }
     }
 
     static func tearDown() {
@@ -79,7 +86,7 @@ enum FocusBackdrop {
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.contentView = NSHostingView(rootView: BackdropView(
             // Defaults to the screen's current wallpaper.
-            image: appearance.background ?? NSWorkspace.shared.desktopImageURL(for: screen).map { .path($0.path) },
+            image: appearance.background ?? wallpaper(for: screen),
             blur: appearance.blur
         ))
         return window

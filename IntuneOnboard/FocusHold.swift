@@ -45,7 +45,11 @@ enum FocusHold {
 
     /// Call after a step finishes; the wallpaper step changes the backdrop.
     static func refreshBackdropBackground() {
-        FocusBackdrop.refreshBackground()
+        guard let backdrop, backdrop.background == nil else { return }
+        Task {
+            let path = await LiveOnboarding.currentWallpaperPath()
+            FocusBackdrop.refreshBackground(wallpaperPath: path)
+        }
     }
 
     // MARK: - Internals
