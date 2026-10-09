@@ -11,6 +11,10 @@ and a root daemon, configured by a single configuration profile.
 The profile has a `provisioning` and an `onboarding` dictionary; either may be
 omitted.
 
+[![Intune Onboard: provisioning during Setup Assistant](Docs/media/intune-onboard-demo.jpg)](Docs/media/intune-onboard-demo.mp4)
+
+[Watch a full enrollment](Docs/media/intune-onboard-demo.mp4) (2 min): Automated Device Enrollment, provisioning, Platform SSO registration and onboarding.
+
 ## Requirements
 
 - macOS 15 or later.
