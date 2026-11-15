@@ -6,7 +6,28 @@ import Testing
         "en": "Questions? Contact IT.",
         "nl": "Vragen? Contacteer IT.",
         "fr": "Des questions ? Contactez l’IT.",
+        "sv": "Frågor? Kontakta IT.",
     ])
+
+    @Test func swedishResolvesFromARegionalMac() {
+        #expect(table.resolved(preferredLanguages: ["sv-SE", "en-SE"]) == "Frågor? Kontakta IT.")
+        #expect(table.resolved(preferredLanguages: ["sv_FI"]) == "Frågor? Kontakta IT.")
+    }
+
+    /// Hand-written profile keys: `sv_SE`, `sv-SE` or `SV`.
+    @Test func profileKeysMatchRegardlessOfSpelling() {
+        let regional = LocalizedText(localized: ["en": "Hi", "sv_SE": "Hej"])
+        #expect(regional.resolved(preferredLanguages: ["sv-SE"]) == "Hej")
+        #expect(regional.resolved(preferredLanguages: ["sv"]) == "Hej")
+        #expect(regional.resolved(preferredLanguages: ["sv-FI"]) == "Hej")
+        #expect(LocalizedText(localized: ["en": "Hi", "SV": "Hej"]).resolved(preferredLanguages: ["sv-SE"]) == "Hej")
+    }
+
+    /// The script subtag is tried before the bare language.
+    @Test func scriptSubtagIsTriedBeforeTheBaseLanguage() {
+        let chinese = LocalizedText(localized: ["en": "Hi", "zh": "base", "zh-Hans": "简体"])
+        #expect(chinese.resolved(preferredLanguages: ["zh-Hans-CN"]) == "简体")
+    }
 
     @Test func exactMatch() {
         #expect(table.resolved(preferredLanguages: ["nl"]) == "Vragen? Contacteer IT.")

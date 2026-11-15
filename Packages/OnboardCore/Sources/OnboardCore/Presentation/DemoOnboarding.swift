@@ -116,8 +116,8 @@ public enum DemoOnboarding {
             OnboardingItem(
                 id: "welcome",
                 kind: .message,
-                title: LocalizedText(localized: ["en": "Welcome to your new Mac", "nl": "Welkom bij je nieuwe Mac", "fr": "Bienvenue sur votre nouveau Mac"]),
-                subtitle: LocalizedText(localized: ["en": "A few steps to make it yours. Press Continue to begin.", "nl": "Een paar stappen om hem van jou te maken. Klik op Doorgaan om te beginnen.", "fr": "Quelques étapes pour le personnaliser. Cliquez sur Continuer pour commencer."]),
+                title: LocalizedText(localized: ["en": "Welcome to your new Mac", "nl": "Welkom bij je nieuwe Mac", "fr": "Bienvenue sur votre nouveau Mac", "sv": "Välkommen till din nya Mac"]),
+                subtitle: LocalizedText(localized: ["en": "A few steps to make it yours. Press Continue to begin.", "nl": "Een paar stappen om hem van jou te maken. Klik op Doorgaan om te beginnen.", "fr": "Quelques étapes pour le personnaliser. Cliquez sur Continuer pour commencer.", "sv": "Några steg för att göra den till din. Klicka på Fortsätt för att börja."]),
                 icon: .symbol("hand.wave"),
                 required: false
             ),
@@ -127,8 +127,8 @@ public enum DemoOnboarding {
                     sources: demoWallpaperSources(),
                     allowKeepExisting: true
                 )),
-                title: LocalizedText(localized: ["en": "Choose a wallpaper", "nl": "Kies een bureaubladachtergrond", "fr": "Choisissez un fond d’écran"]),
-                subtitle: LocalizedText(localized: ["en": "Please choose a wallpaper from our list of branded images. You can always change it later.", "nl": "Kies een achtergrond uit onze bedrijfsafbeeldingen. Je kunt dit later altijd aanpassen.", "fr": "Choisissez un fond d’écran parmi nos images d’entreprise. Vous pourrez le changer plus tard."]),
+                title: LocalizedText(localized: ["en": "Choose a wallpaper", "nl": "Kies een bureaubladachtergrond", "fr": "Choisissez un fond d’écran", "sv": "Välj en skrivbordsbild"]),
+                subtitle: LocalizedText(localized: ["en": "Please choose a wallpaper from our list of branded images. You can always change it later.", "nl": "Kies een achtergrond uit onze bedrijfsafbeeldingen. Je kunt dit later altijd aanpassen.", "fr": "Choisissez un fond d’écran parmi nos images d’entreprise. Vous pourrez le changer plus tard.", "sv": "Välj en skrivbordsbild bland våra företagsbilder. Du kan alltid ändra den senare."]),
                 icon: .symbol("photo"),
                 required: false
             ),
@@ -144,8 +144,8 @@ public enum DemoOnboarding {
                         "/System/Applications/System Settings.app",
                     ]
                 )),
-                title: LocalizedText(localized: ["en": "Dock", "nl": "Dock", "fr": "Dock"]),
-                subtitle: LocalizedText(localized: ["en": "For convenient access, we recommend adding these apps and items to your Dock.", "nl": "Voor snelle toegang raden we aan deze apps en onderdelen aan je Dock toe te voegen.", "fr": "Pour un accès rapide, nous vous conseillons d’ajouter ces apps et éléments à votre Dock."]),
+                title: LocalizedText(localized: ["en": "Dock", "nl": "Dock", "fr": "Dock", "sv": "Dock"]),
+                subtitle: LocalizedText(localized: ["en": "For convenient access, we recommend adding these apps and items to your Dock.", "nl": "Voor snelle toegang raden we aan deze apps en onderdelen aan je Dock toe te voegen.", "fr": "Pour un accès rapide, nous vous conseillons d’ajouter ces apps et éléments à votre Dock.", "sv": "För snabb åtkomst rekommenderar vi att du lägger till de här apparna och objekten i Dock."]),
                 icon: .symbol("dock.rectangle"),
                 required: false
             ),
@@ -155,8 +155,8 @@ public enum DemoOnboarding {
                     browsers: ["com.microsoft.edgemac"],
                     explanation: LocalizedText(plain: "macOS will ask you to confirm the change.")
                 )),
-                title: LocalizedText(localized: ["en": "Confirm default browser", "nl": "Standaardbrowser bevestigen", "fr": "Confirmer le navigateur par défaut"]),
-                subtitle: LocalizedText(localized: ["en": "Confirm Microsoft Edge as default browser.", "nl": "Bevestig Microsoft Edge als standaardbrowser.", "fr": "Confirmez Microsoft Edge comme navigateur par défaut."]),
+                title: LocalizedText(localized: ["en": "Confirm default browser", "nl": "Standaardbrowser bevestigen", "fr": "Confirmer le navigateur par défaut", "sv": "Bekräfta standardwebbläsare"]),
+                subtitle: LocalizedText(localized: ["en": "Confirm Microsoft Edge as default browser.", "nl": "Bevestig Microsoft Edge als standaardbrowser.", "fr": "Confirmez Microsoft Edge comme navigateur par défaut.", "sv": "Bekräfta Microsoft Edge som standardwebbläsare."]),
                 icon: .symbol("globe"),
                 required: false
             ),
@@ -166,25 +166,25 @@ public enum DemoOnboarding {
                     urlSchemes: ["mailto": ["com.microsoft.Outlook", "com.apple.mail"]],
                     allowKeepExisting: true
                 )),
-                title: LocalizedText(localized: ["en": "Choose mail app", "nl": "Kies een mailapp", "fr": "Choisissez une app de messagerie"]),
-                subtitle: LocalizedText(localized: ["en": "Choose your preferred app for email.", "nl": "Kies de app die je voor e-mail wilt gebruiken.", "fr": "Choisissez l’app que vous souhaitez utiliser pour vos e-mails."]),
+                title: LocalizedText(localized: ["en": "Choose mail app", "nl": "Kies een mailapp", "fr": "Choisissez une app de messagerie", "sv": "Välj e-postapp"]),
+                subtitle: LocalizedText(localized: ["en": "Choose your preferred app for email.", "nl": "Kies de app die je voor e-mail wilt gebruiken.", "fr": "Choisissez l’app que vous souhaitez utiliser pour vos e-mails.", "sv": "Välj vilken app du vill använda för e-post."]),
                 icon: .symbol("envelope"),
                 required: false
             ),
             OnboardingItem(
                 id: "portal",
                 kind: .open(target: .bundleID("com.microsoft.CompanyPortalMac"), completion: .manual),
-                title: LocalizedText(localized: ["en": "Sign in to Company Portal", "nl": "Aanmelden bij Bedrijfsportal", "fr": "Connectez-vous au Portail d’entreprise"]),
-                subtitle: LocalizedText(localized: ["en": "Register this Mac so it can receive company resources.", "nl": "Registreer deze Mac zodat hij bedrijfsresources kan ontvangen.", "fr": "Enregistrez ce Mac pour qu’il reçoive les ressources de l’entreprise."]),
+                title: LocalizedText(localized: ["en": "Sign in to Company Portal", "nl": "Aanmelden bij Bedrijfsportal", "fr": "Connectez-vous au Portail d’entreprise", "sv": "Logga in i Företagsportal"]),
+                subtitle: LocalizedText(localized: ["en": "Register this Mac so it can receive company resources.", "nl": "Registreer deze Mac zodat hij bedrijfsresources kan ontvangen.", "fr": "Enregistrez ce Mac pour qu’il reçoive les ressources de l’entreprise.", "sv": "Registrera din Mac så att den kan ta emot företagets resurser."]),
                 icon: .symbol("person.badge.shield.checkmark"),
-                buttonTitle: LocalizedText(localized: ["en": "Open Company Portal", "nl": "Bedrijfsportal openen", "fr": "Ouvrir le Portail d’entreprise"]),
+                buttonTitle: LocalizedText(localized: ["en": "Open Company Portal", "nl": "Bedrijfsportal openen", "fr": "Ouvrir le Portail d’entreprise", "sv": "Öppna Företagsportal"]),
                 required: false
             ),
             OnboardingItem(
                 id: "demote",
                 kind: .demoteUser(exclude: []),
-                title: LocalizedText(localized: ["en": "Standard account", "nl": "Standaardaccount", "fr": "Compte standard"]),
-                subtitle: LocalizedText(localized: ["en": "Your account is switched to a standard user. Use Privileges when you need admin rights.", "nl": "Je account wordt omgezet naar een standaardgebruiker. Gebruik Privileges als je beheerdersrechten nodig hebt.", "fr": "Votre compte passe en utilisateur standard. Utilisez Privileges lorsque vous avez besoin de droits d’administration."]),
+                title: LocalizedText(localized: ["en": "Standard account", "nl": "Standaardaccount", "fr": "Compte standard", "sv": "Standardkonto"]),
+                subtitle: LocalizedText(localized: ["en": "Your account is switched to a standard user. Use Privileges when you need admin rights.", "nl": "Je account wordt omgezet naar een standaardgebruiker. Gebruik Privileges als je beheerdersrechten nodig hebt.", "fr": "Votre compte passe en utilisateur standard. Utilisez Privileges lorsque vous avez besoin de droits d’administration.", "sv": "Ditt konto ändras till en standardanvändare. Använd Privileges när du behöver administratörsbehörighet."]),
                 icon: .symbol("person.crop.circle.badge.checkmark"),
                 required: false
             ),

@@ -379,6 +379,8 @@ exit 0
 					<string>Configuration de votre Mac</string>
 					<key>nl</key>
 					<string>Je Mac wordt ingesteld</string>
+					<key>sv</key>
+					<string>Din Mac ställs in</string>
 				</dict>
 			</dict>
 			<key>requireADE</key>

@@ -12,8 +12,9 @@ DAEMON_LABEL="be.jordythery.intuneonboard.daemon"
 AGENT_LABEL="be.jordythery.intuneonboard.agent"
 
 /bin/launchctl bootout "system/$DAEMON_LABEL" 2>/dev/null || true
-# Every user session, including fast-user-switched ones.
-/usr/bin/dscl . -list /Users UniqueID 2>/dev/null | /usr/bin/awk '$2 >= 501 { print $2 }' | while read -r uid; do
+# Every user session, including fast-user-switched ones, and Setup
+# Assistant's _mbsetupuser, into which postinstall can also bootstrap the agent.
+/usr/bin/dscl . -list /Users UniqueID 2>/dev/null | /usr/bin/awk '$2 >= 501 || $1 == "_mbsetupuser" { print $2 }' | while read -r uid; do
     /bin/launchctl bootout "gui/$uid/$AGENT_LABEL" 2>/dev/null || true
 done
 

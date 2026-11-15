@@ -169,6 +169,8 @@
 					<string>Installation des apps</string>
 					<key>nl</key>
 					<string>Installeren van apps</string>
+					<key>sv</key>
+					<string>Installerar appar</string>
 				</dict>
 			</dict>
 			<key>requireADE</key>

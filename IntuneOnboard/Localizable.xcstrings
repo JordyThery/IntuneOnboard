@@ -26,6 +26,12 @@
             "state" : "translated",
             "value" : "Het serienummer kon niet worden gelezen."
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serienumret kunde inte läsas."
+          }
         }
       }
     }

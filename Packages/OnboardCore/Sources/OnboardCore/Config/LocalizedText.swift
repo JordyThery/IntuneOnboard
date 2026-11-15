@@ -1,7 +1,9 @@
 import Foundation
 
 /// A string, or a dictionary of language code to string. Resolved as exact
-/// tag, then base language (`nl-BE` → `nl`), then `en`, then the first key.
+/// tag, then shorter tags (`nl-BE` → `nl`), then another region of the same
+/// language (`sv` → `sv-SE`), then `en`, then the first key. Tags compare
+/// case-insensitively, with `_` and `-` alike.
 public struct LocalizedText: Equatable, Sendable {
     public enum Storage: Equatable, Sendable {
         case plain(String)
@@ -35,20 +37,46 @@ public struct LocalizedText: Equatable, Sendable {
         case .plain(let value):
             return value
         case .localized(let table):
-            for tag in preferredLanguages {
-                if let exact = table[tag] {
-                    return exact
+            // Profiles are hand-written: accept `sv_SE`, `sv-SE` and `SV`
+            // alike, and a regional key (`sv-SE`) for a bare `sv`.
+            let normalized = Dictionary(
+                table.map { (Self.normalize($0.key), $0.value) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for tag in preferredLanguages.map(Self.normalize) {
+                // `zh-hans-cn` → `zh-hans` → `zh`.
+                var candidate = tag
+                while true {
+                    if let match = normalized[candidate] {
+                        return match
+                    }
+                    guard let dash = candidate.lastIndex(of: "-") else { break }
+                    candidate = String(candidate[..<dash])
                 }
-                let base = String(tag.prefix(while: { $0 != "-" && $0 != "_" }))
-                if let baseMatch = table[base] {
-                    return baseMatch
+                let base = Self.baseLanguage(of: tag)
+                // Another region of the same language, in sorted order.
+                if let regional = normalized
+                    .filter({ Self.baseLanguage(of: $0.key) == base })
+                    .sorted(by: { $0.key < $1.key })
+                    .first {
+                    return regional.value
                 }
             }
-            if let english = table["en"] {
+            if let english = normalized["en"] {
                 return english
             }
             // First key in sorted order, for a stable result.
             return table.sorted(by: { $0.key < $1.key }).first?.value ?? ""
         }
+    }
+
+    /// `sv_SE` → `sv-se`.
+    private static func normalize(_ tag: String) -> String {
+        tag.replacingOccurrences(of: "_", with: "-").lowercased()
+    }
+
+    /// `sv-se` → `sv`.
+    private static func baseLanguage(of tag: String) -> String {
+        String(tag.prefix(while: { $0 != "-" }))
     }
 }

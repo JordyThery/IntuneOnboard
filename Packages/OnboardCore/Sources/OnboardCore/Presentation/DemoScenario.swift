@@ -111,10 +111,12 @@ public enum DemoScenario {
                 title: LocalizedText(localized: [
                     "en": "Setting up your Mac",
                     "nl": "Je Mac wordt ingesteld",
+                    "sv": "Din Mac ställs in",
                 ]),
                 message: LocalizedText(localized: [
                     "en": "This takes a few minutes. Leave the Mac plugged in and connected to the network.",
                     "nl": "Dit duurt enkele minuten. Laat de Mac aangesloten op stroom en netwerk.",
+                    "sv": "Det här tar några minuter. Låt datorn vara ansluten till ström och nätverk.",
                 ]),
                 showDeviceInfo: true,
                 items: [
