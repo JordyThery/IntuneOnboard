@@ -29,6 +29,20 @@ import Testing
         #expect(chinese.resolved(preferredLanguages: ["zh-Hans-CN"]) == "简体")
     }
 
+    /// A bare language finds a regional key.
+    @Test func bareLanguageFindsARegionalKey() {
+        let regional = LocalizedText(localized: ["en": "Hi", "sv-SE": "Hej"])
+        #expect(regional.resolved(preferredLanguages: ["sv"]) == "Hej")
+    }
+
+    /// Traditional Chinese never gets Simplified: a different script falls
+    /// through to English.
+    @Test func anotherScriptIsNotTheSameLanguage() {
+        let simplifiedOnly = LocalizedText(localized: ["en": "Hi", "zh-Hans": "简体"])
+        #expect(simplifiedOnly.resolved(preferredLanguages: ["zh-Hant-TW"]) == "Hi")
+        #expect(simplifiedOnly.resolved(preferredLanguages: ["zh-Hant"]) == "Hi")
+    }
+
     @Test func exactMatch() {
         #expect(table.resolved(preferredLanguages: ["nl"]) == "Vragen? Contacteer IT.")
     }

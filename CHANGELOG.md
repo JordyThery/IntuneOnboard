@@ -12,9 +12,7 @@
 - Localized profile strings now match language keys case-insensitively and
   with `_` or `-` (`sv_SE`, `sv-SE`, `SV`), try script subtags before the bare
   language (`zh-Hans-CN` → `zh-Hans`), and fall back to another region of the
-  same language (`sv` → `sv-SE`) before English.
-- The Xcode project listed only English as a known region; French, Dutch and
-  Swedish are now listed.
+  same language and script (`sv` → `sv-SE`) before English.
 - A `status:` line arriving just after an item finished could be shown on the
   next item.
 - `preinstall` and `uninstall.sh` did not stop the login agent in Setup

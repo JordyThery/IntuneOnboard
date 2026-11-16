@@ -2,8 +2,9 @@ import Foundation
 
 /// A string, or a dictionary of language code to string. Resolved as exact
 /// tag, then shorter tags (`nl-BE` → `nl`), then another region of the same
-/// language (`sv` → `sv-SE`), then `en`, then the first key. Tags compare
-/// case-insensitively, with `_` and `-` alike.
+/// language and script (`sv` → `sv-SE`, never `zh-Hant` → `zh-Hans`), then
+/// `en`, then the first key. Tags compare case-insensitively, with `_` and
+/// `-` alike.
 public struct LocalizedText: Equatable, Sendable {
     public enum Storage: Equatable, Sendable {
         case plain(String)
@@ -54,9 +55,16 @@ public struct LocalizedText: Equatable, Sendable {
                     candidate = String(candidate[..<dash])
                 }
                 let base = Self.baseLanguage(of: tag)
-                // Another region of the same language, in sorted order.
+                let script = Self.script(of: tag)
+                // Another region of the same language, in sorted order. A
+                // different script is a different written language
+                // (`zh-Hant` must not get `zh-Hans`), so it falls through.
                 if let regional = normalized
-                    .filter({ Self.baseLanguage(of: $0.key) == base })
+                    .filter({ entry in
+                        guard Self.baseLanguage(of: entry.key) == base else { return false }
+                        guard let script, let keyScript = Self.script(of: entry.key) else { return true }
+                        return keyScript == script
+                    })
                     .sorted(by: { $0.key < $1.key })
                     .first {
                     return regional.value
@@ -78,5 +86,12 @@ public struct LocalizedText: Equatable, Sendable {
     /// `sv-se` → `sv`.
     private static func baseLanguage(of tag: String) -> String {
         String(tag.prefix(while: { $0 != "-" }))
+    }
+
+    /// `zh-hant-tw` → `hant`; nil without a script subtag (`sv-se`).
+    private static func script(of tag: String) -> String? {
+        let subtags = tag.split(separator: "-")
+        guard subtags.count > 1, subtags[1].count == 4, subtags[1].allSatisfy(\.isLetter) else { return nil }
+        return String(subtags[1])
     }
 }

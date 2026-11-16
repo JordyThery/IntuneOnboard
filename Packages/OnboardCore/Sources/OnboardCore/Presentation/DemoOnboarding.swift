@@ -153,7 +153,7 @@ public enum DemoOnboarding {
                 id: "browser",
                 kind: .defaultApps(.init(
                     browsers: ["com.microsoft.edgemac"],
-                    explanation: LocalizedText(plain: "macOS will ask you to confirm the change.")
+                    explanation: LocalizedText(localized: ["en": "macOS will ask you to confirm the change.", "nl": "macOS vraagt je de wijziging te bevestigen.", "fr": "macOS vous demandera de confirmer la modification.", "sv": "macOS ber dig bekräfta ändringen."])
                 )),
                 title: LocalizedText(localized: ["en": "Confirm default browser", "nl": "Standaardbrowser bevestigen", "fr": "Confirmer le navigateur par défaut", "sv": "Bekräfta standardwebbläsare"]),
                 subtitle: LocalizedText(localized: ["en": "Confirm Microsoft Edge as default browser.", "nl": "Bevestig Microsoft Edge als standaardbrowser.", "fr": "Confirmez Microsoft Edge comme navigateur par défaut.", "sv": "Bekräfta Microsoft Edge som standardwebbläsare."]),
