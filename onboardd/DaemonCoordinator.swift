@@ -125,6 +125,25 @@ actor DaemonCoordinator {
         self.configuration = configuration
         rebuildSinks(logging: configuration.logging)
 
+        // A Mac set up before the rollout is marked finished instead (`existingMacs`).
+        if ExistingMac.applies(
+            configuration: configuration,
+            deviceState: (try? store.loadDeviceState()) ?? nil,
+            setupCompletedAt: ExistingMac.setupCompletedAt()
+        ) {
+            do {
+                try store.saveDeviceState(DeviceState(completedAt: .now, skippedAsExisting: true))
+            } catch {
+                log("existing Mac: could not write the device marker: \(error.localizedDescription)")
+                publish(state: .preflightFailed)
+                return ExitCode.completedWithErrors.rawValue
+            }
+            log("existing Mac (Setup Assistant finished before the rollout) — marked complete without provisioning")
+            phase = .finished(ProvisioningEngine.Result(markerWritten: true, failedRequiredIDs: []))
+            publish(state: .completed)
+            return ExitCode.success.rawValue
+        }
+
         // 2. Preflight.
         phase = .preflight
         publish(state: .preflight)

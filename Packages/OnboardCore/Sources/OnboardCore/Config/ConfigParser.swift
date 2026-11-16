@@ -20,6 +20,7 @@ public enum ConfigParser {
             dryRun: decoder.bool("dryRun") ?? false,
             organization: parseOrganization(decoder.child("organization")),
             requireADE: decoder.bool("requireADE") ?? false,
+            existingMacs: parseExistingMacs(decoder.child("existingMacs")),
             network: parseNetwork(decoder.child("network")),
             installomator: parseInstallomator(decoder.child("installomator")),
             provisioning: parseProvisioning(decoder.child("provisioning")),
@@ -123,6 +124,19 @@ public enum ConfigParser {
             }
         }
         return options
+    }
+
+    private static func parseExistingMacs(_ decoder: PlistDecoder?) -> Configuration.ExistingMacs? {
+        guard let decoder else { return nil }
+        var hours = decoder.int("setupOlderThanHours") ?? Configuration.ExistingMacs.defaultSetupOlderThanHours
+        if !(1...8760).contains(hours) {
+            decoder.errors.add(ConfigError(
+                path: "\(decoder.path).setupOlderThanHours",
+                kind: .invalidValue("must be between 1 and 8760 hours")
+            ))
+            hours = Configuration.ExistingMacs.defaultSetupOlderThanHours
+        }
+        return Configuration.ExistingMacs(skip: decoder.bool("skip") ?? false, setupOlderThanHours: hours)
     }
 
     private static func parseLogging(_ decoder: PlistDecoder?) -> Configuration.Logging {

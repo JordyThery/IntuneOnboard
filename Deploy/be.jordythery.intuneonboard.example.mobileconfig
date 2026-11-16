@@ -17,6 +17,13 @@
 			<integer>1</integer>
 			<key>dryRun</key>
 			<false/>
+			<key>existingMacs</key>
+			<dict>
+				<key>setupOlderThanHours</key>
+				<integer>24</integer>
+				<key>skip</key>
+				<false/>
+			</dict>
 			<key>installomator</key>
 			<dict>
 				<key>defaultOptions</key>

@@ -40,12 +40,14 @@ The custom attribute reports both stages:
 provisioning: complete (4/4) · onboarding: in progress (jordy, 3/8)
 provisioning: failed (1 failed, 4/4 finished) · onboarding: no console user
 provisioning: not applicable (requireADE)
+provisioning: skipped (existing Mac) · onboarding: complete (jordy)
 not installed
 ```
 
 | Value | Meaning |
 |---|---|
 | `not applicable (requireADE)` | `requireADE` is set and the Mac was not enrolled through ADE; nothing runs. |
+| `skipped (existing Mac)` | `existingMacs` marked the Mac complete without running either stage. |
 | `not installed` | The package is not installed. |
 | `onboarding: not started` | Common right after enrollment; Intune reports the value from its last script run. |
 

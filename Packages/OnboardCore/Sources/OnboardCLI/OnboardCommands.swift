@@ -93,6 +93,7 @@ struct Status: ParsableCommand {
 
     private static func provisioningPhrase(_ device: DeviceState?) -> String {
         guard let device else { return "provisioning: not started" }
+        if device.skippedAsExisting { return "provisioning: skipped (existing Mac)" }
         let terminal = device.items.values.filter { $0.outcome.isTerminal }
         let failed = device.items.values.filter { $0.outcome == .failed }
         if device.completedAt != nil {

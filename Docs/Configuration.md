@@ -44,12 +44,46 @@ language. Include an `en` entry in every localized dictionary.
 | `schemaVersion` | int | `1` | Other versions are rejected. |
 | `dryRun` | bool | `false` | Renders both stages without changing the Mac or writing completion markers. A **DRY RUN** badge is shown. |
 | `requireADE` | bool | `false` | If the Mac was not enrolled through ADE, neither stage runs and nothing is shown (exit 12). |
+| `existingMacs` | dict | — | Skip Macs set up before the rollout. [Below](#existingmacs). |
 | `organization` | dict | — | [Below](#organization). |
 | `network` | dict | — | [Below](#network). |
 | `installomator` | dict | — | [Below](#installomator). |
 | `provisioning` | dict | — | [Below](#provisioning). |
 | `onboarding` | dict | — | [Below](#onboarding). |
 | `logging` | dict | — | `maxFileSizeMB` (int, `10`), `keepArchives` (int, `3`). |
+
+## `existingMacs`
+
+For rolling out to a fleet that is already in use. A Mac whose Setup
+Assistant finished at least `setupOlderThanHours` before the daemon's first
+run is marked complete: neither provisioning nor onboarding runs, and nothing
+is shown to any user on it. New Macs get the full flow.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `skip` | bool | `false` | Turns the rule on. |
+| `setupOlderThanHours` | int | `24` | 1–8760. Setup time is the modification date of `/var/db/.AppleSetupDone`. |
+
+The decision is taken once, before the first run, and stored in
+`device.json` (`skippedAsExisting`), so a new Mac never turns into an
+existing one later. Turning the rule off afterwards does not undo it. To run
+a skipped Mac anyway, give it a profile without `skip`, then run
+`sudo onboardd reset --device --user <name>`; with `skip` still on, the
+Mac is classified again and skipped again.
+
+Deploy the profile before or together with the package. Without it, an
+existing Mac that installs the package waits for the profile like any other
+Mac, and shows that it is waiting.
+
+```xml
+<key>existingMacs</key>
+<dict>
+	<key>skip</key>
+	<true/>
+	<key>setupOlderThanHours</key>
+	<integer>24</integer>
+</dict>
+```
 
 ## `organization`
 

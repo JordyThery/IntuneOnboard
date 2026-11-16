@@ -33,6 +33,20 @@
 	<key>requireADE</key>
 	<false/>
 
+	<!-- Macs already in use when Intune Onboard is rolled out. With skip true,
+	     a Mac whose Setup Assistant finished at least setupOlderThanHours
+	     (default 24) before the first run is marked complete: nothing runs or
+	     is shown. Decided once; new Macs get the full flow. -->
+	<key>existingMacs</key>
+	<dict>
+		<!-- Default false. -->
+		<key>skip</key>
+		<false/>
+		<!-- Default 24, 1–8760. -->
+		<key>setupOlderThanHours</key>
+		<integer>24</integer>
+	</dict>
+
 
 	<!-- Log rotation for /var/log/IntuneOnboard. -->
 	<key>logging</key>
