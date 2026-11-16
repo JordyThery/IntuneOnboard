@@ -132,6 +132,8 @@
 			<string>Je Mac wordt ingesteld</string>
 			<key>fr</key>
 			<string>Configuration de votre Mac</string>
+			<key>sv</key>
+			<string>Din Mac ställs in</string>
 		</dict>
 
 		<!-- localized. -->

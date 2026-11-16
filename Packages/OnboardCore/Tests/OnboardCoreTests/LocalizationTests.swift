@@ -3,7 +3,7 @@ import Testing
 @testable import OnboardCore
 @testable import OnboardUI
 
-/// Resolves strings in Dutch and French: a failed package lookup returns the
+/// Resolves strings in Dutch, French and Swedish: a failed package lookup returns the
 /// English key, which would pass unnoticed in English.
 @Suite struct LocalizationTests {
     private var catalogURL: URL {
@@ -25,6 +25,7 @@ import Testing
         #expect(resolved(ProvisioningStrings.completed, in: "en") == "Your Mac is ready")
         #expect(resolved(ProvisioningStrings.completed, in: "nl") == "Je Mac is klaar")
         #expect(resolved(ProvisioningStrings.completed, in: "fr") == "Votre Mac est prêt")
+        #expect(resolved(ProvisioningStrings.completed, in: "sv") == "Din Mac är klar")
     }
 
     /// The failure message is translated and keeps the organization's text.
@@ -36,12 +37,18 @@ import Testing
 
         let fr = resolved(ProvisioningStrings.contactSupportGeneric, in: "fr")
         #expect(fr.contains("assistance informatique"))
+
+        let sv = resolved(ProvisioningStrings.contactSupport(details: details), in: "sv")
+        #expect(sv.contains(details))
+        #expect(sv.contains("Kontakta IT"))
     }
 
     @Test func onboardingStringsResolveFromTheModuleCatalog() {
         #expect(resolved(OnboardingStrings.continueButton, in: "nl") == "Doorgaan")
         #expect(resolved(OnboardingStrings.continueButton, in: "fr") == "Continuer")
         #expect(resolved(OnboardingStrings.keepCurrent, in: "nl") == "Huidige behouden")
+        #expect(resolved(OnboardingStrings.continueButton, in: "sv") == "Fortsätt")
+        #expect(resolved(OnboardingStrings.keepCurrent, in: "sv") == "Behåll nuvarande")
     }
 
     /// Status texts are translated.
@@ -66,6 +73,11 @@ import Testing
         #expect(resolved(ProvisioningStrings.progressCaption(completed: 2, total: 7), in: "en") == "2 of 7 complete")
         #expect(resolved(ProvisioningStrings.progressCaption(completed: 2, total: 7), in: "nl") == "2 van 7 voltooid")
         #expect(resolved(ProvisioningStrings.progressCaption(completed: 2, total: 7), in: "fr") == "2 sur 7 terminés")
+        #expect(resolved(ProvisioningStrings.progressCaption(completed: 2, total: 7), in: "sv") == "2 av 7 klara")
+        #expect(
+            resolved(ProvisioningStrings.stepCaption(item: "Microsoft Edge", step: 2, total: 4), in: "sv")
+                == "Microsoft Edge (steg 2 av 4)"
+        )
 
         #expect(
             resolved(ProvisioningStrings.stepCaption(item: "Microsoft Edge", step: 2, total: 4), in: "nl")
@@ -85,6 +97,8 @@ import Testing
         #expect(resolved(ProvisioningStrings.failureCaption(count: 3), in: "nl") == "3 onderdelen zijn mislukt")
         #expect(resolved(ProvisioningStrings.failureCaption(count: 1), in: "fr") == "1 élément a échoué")
         #expect(resolved(ProvisioningStrings.failureCaption(count: 3), in: "fr") == "3 éléments ont échoué")
+        #expect(resolved(ProvisioningStrings.failureCaption(count: 1), in: "sv") == "1 objekt misslyckades")
+        #expect(resolved(ProvisioningStrings.failureCaption(count: 3), in: "sv") == "3 objekt misslyckades")
 
         // Provisioning failure count.
         #expect(resolved(ProvisioningStrings.needsAttention(count: 1), in: "en") == "1 needs attention")
@@ -106,7 +120,7 @@ import Testing
         #expect(sentence == "Deze stap is niet voltooid: desktoppr exited 1")
     }
 
-    /// Every string has English, Dutch and French translations and a comment.
+    /// Every string has English, Dutch, French and Swedish translations and a comment.
     @Test func everyStringIsTranslatedIntoEveryLanguage() throws {
         let data = try Data(contentsOf: catalogURL)
         let catalog = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -117,7 +131,7 @@ import Testing
 
         for (key, entry) in strings {
             let localizations = try #require(entry["localizations"] as? [String: Any], "`\(key)` has no localizations")
-            for language in ["en", "nl", "fr"] {
+            for language in ["en", "nl", "fr", "sv"] {
                 #expect(localizations[language] != nil, "`\(key)` is missing \(language)")
             }
             #expect(entry["comment"] is String, "`\(key)` has no comment for whoever translates it next")

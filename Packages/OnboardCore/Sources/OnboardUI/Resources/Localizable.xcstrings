@@ -22,6 +22,12 @@
             "state" : "translated",
             "value" : "%1$@ (stap %2$lld van %3$lld)"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (steg %2$lld av %3$lld)"
+          }
         }
       }
     },
@@ -78,6 +84,24 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld onderdelen zijn mislukt"
+                }
+              }
+            }
+          }
+        },
+        "sv" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld objekt misslyckades"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld objekt misslyckades"
                 }
               }
             }
@@ -142,6 +166,24 @@
               }
             }
           }
+        },
+        "sv" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld behöver åtgärdas"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld behöver åtgärdas"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -165,6 +207,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld van %2$lld voltooid"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld av %2$lld klara"
           }
         }
       }
@@ -190,6 +238,12 @@
             "state" : "translated",
             "value" : "%1$lld van %2$lld voltooid"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld av %2$lld klara"
+          }
         }
       }
     },
@@ -213,6 +267,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Over deze Mac…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Om den här datorn…"
           }
         }
       }
@@ -238,6 +298,12 @@
             "state" : "translated",
             "value" : "Aanbevolen onderdelen aan het huidige Dock toevoegen"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lägg till rekommenderade objekt i nuvarande Dock"
+          }
         }
       }
     },
@@ -262,6 +328,12 @@
             "state" : "translated",
             "value" : "Deze Mac wordt gecontroleerd…"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontrollerar din Mac…"
+          }
         }
       }
     },
@@ -282,6 +354,12 @@
           }
         },
         "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chip"
+          }
+        },
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chip"
@@ -310,6 +388,12 @@
             "state" : "translated",
             "value" : "Sluiten"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stäng"
+          }
         }
       }
     },
@@ -333,6 +417,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Voltooid"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slutförd"
           }
         }
       }
@@ -358,6 +448,12 @@
             "state" : "translated",
             "value" : "Stel je nieuwe Mac in!"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurera din nya Mac!"
+          }
         }
       }
     },
@@ -381,6 +477,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bevestigen"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bekräfta"
           }
         }
       }
@@ -406,6 +508,12 @@
             "state" : "translated",
             "value" : "Verbonden"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ansluten"
+          }
         }
       }
     },
@@ -429,6 +537,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verbinden met de onboardingservice…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ansluter till onboardingtjänsten…"
           }
         }
       }
@@ -454,6 +568,12 @@
             "state" : "translated",
             "value" : "Doorgaan"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fortsätt"
+          }
         }
       }
     },
@@ -477,6 +597,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toch doorgaan"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fortsätt ändå"
           }
         }
       }
@@ -502,6 +628,12 @@
             "state" : "translated",
             "value" : "Kon de logboeken niet naar /Users/Shared schrijven."
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det gick inte att skriva loggarna till /Users/Shared."
+          }
         }
       }
     },
@@ -525,6 +657,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gemaakt door Jordy Thery met ❤️"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skapad av Jordy Thery med ❤️"
           }
         }
       }
@@ -550,6 +688,12 @@
             "state" : "translated",
             "value" : "Huidige"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuvarande"
+          }
         }
       }
     },
@@ -573,6 +717,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Klaar"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klar"
           }
         }
       }
@@ -598,6 +748,12 @@
             "state" : "translated",
             "value" : "Klaar (%1$lld toegevoegd, %2$lld overgeslagen)"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klar (%1$lld tillagda, %2$lld överhoppade)"
+          }
         }
       }
     },
@@ -621,6 +777,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Download mislukt"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hämtningen misslyckades"
           }
         }
       }
@@ -646,6 +808,12 @@
             "state" : "translated",
             "value" : "Downloaden…"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hämtar…"
+          }
         }
       }
     },
@@ -669,6 +837,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Testrun"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testkörning"
           }
         }
       }
@@ -694,6 +868,12 @@
             "state" : "translated",
             "value" : "Testrun — er wordt niets op deze Mac gewijzigd."
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testkörning – ingenting ändras på din Mac."
+          }
         }
       }
     },
@@ -717,6 +897,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verstreken"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Förfluten tid"
           }
         }
       }
@@ -742,6 +928,12 @@
             "state" : "translated",
             "value" : "Exporteren…"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportera…"
+          }
         }
       }
     },
@@ -765,6 +957,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geëxporteerd naar /Users/Shared"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporterat till /Users/Shared"
           }
         }
       }
@@ -790,6 +988,12 @@
             "state" : "translated",
             "value" : "Mislukt"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misslyckades"
+          }
         }
       }
     },
@@ -813,6 +1017,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Help"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hjälp"
           }
         }
       }
@@ -838,6 +1048,12 @@
             "state" : "translated",
             "value" : "Geïnstalleerd"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerad"
+          }
         }
       }
     },
@@ -861,6 +1077,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Installeren…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installerar…"
           }
         }
       }
@@ -886,6 +1108,12 @@
             "state" : "translated",
             "value" : "Huidige behouden"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Behåll nuvarande"
+          }
         }
       }
     },
@@ -909,6 +1137,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Het huidige Dock behouden"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Behåll nuvarande Dock"
           }
         }
       }
@@ -934,6 +1168,12 @@
             "state" : "translated",
             "value" : "Geheugen"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minne"
+          }
         }
       }
     },
@@ -957,6 +1197,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Model"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modell"
           }
         }
       }
@@ -982,6 +1228,12 @@
             "state" : "translated",
             "value" : "Netwerk"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nätverk"
+          }
         }
       }
     },
@@ -1005,6 +1257,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nog geen Intune-logboek — de agent wordt tijdens de inschrijving geïnstalleerd. Exporteer om de MDM-regels uit het systeemlogboek mee te nemen."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingen Intune-logg ännu – agenten installeras under registreringen. Exportera för att få med MDM-posterna från systemloggen."
           }
         }
       }
@@ -1030,6 +1288,12 @@
             "state" : "translated",
             "value" : "Niet verbonden"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inte ansluten"
+          }
         }
       }
     },
@@ -1053,6 +1317,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Niet nodig"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Behövs inte"
           }
         }
       }
@@ -1078,6 +1348,12 @@
             "state" : "translated",
             "value" : "Hier is nog niets gelogd."
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inget har loggats här ännu."
+          }
         }
       }
     },
@@ -1101,6 +1377,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Onboardinglogboeken"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onboardingloggar"
           }
         }
       }
@@ -1126,6 +1408,12 @@
             "state" : "translated",
             "value" : "Openen"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öppna"
+          }
         }
       }
     },
@@ -1149,6 +1437,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Voorbereiden…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Förbereder…"
           }
         }
       }
@@ -1174,6 +1468,12 @@
             "state" : "translated",
             "value" : "Het huidige Dock vervangen door de aanbeveling"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersätt nuvarande Dock med rekommendationen"
+          }
         }
       }
     },
@@ -1197,6 +1497,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mislukte onderdelen opnieuw proberen"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Försök igen med misslyckade objekt"
           }
         }
       }
@@ -1222,6 +1528,12 @@
             "state" : "translated",
             "value" : "Uitvoeren…"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Körs…"
+          }
         }
       }
     },
@@ -1242,6 +1554,12 @@
           }
         },
         "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serienummer"
+          }
+        },
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Serienummer"
@@ -1270,6 +1588,12 @@
             "state" : "translated",
             "value" : "Je Mac wordt ingesteld"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Din Mac ställs in"
+          }
         }
       }
     },
@@ -1293,6 +1617,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Installatie kan niet starten op deze Mac"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurationen kan inte starta på din Mac"
           }
         }
       }
@@ -1318,6 +1648,12 @@
             "state" : "translated",
             "value" : "Installatie voltooid met problemen"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurationen slutfördes med problem"
+          }
         }
       }
     },
@@ -1341,6 +1677,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toon alleen de regels die met de inschrijving te maken hebben"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa endast rader som rör registreringen"
           }
         }
       }
@@ -1366,6 +1708,12 @@
             "state" : "translated",
             "value" : "Overgeslagen"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Överhoppad"
+          }
         }
       }
     },
@@ -1389,6 +1737,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opslag"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lagring"
           }
         }
       }
@@ -1414,6 +1768,12 @@
             "state" : "translated",
             "value" : "Samenvatten"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sammanfatta"
+          }
         }
       }
     },
@@ -1437,6 +1797,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "De apps voor deze stap zijn niet op deze Mac geïnstalleerd."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparna för det här steget är inte installerade på din Mac."
           }
         }
       }
@@ -1462,6 +1828,12 @@
             "state" : "translated",
             "value" : "Dit logboek is al samengevat"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den här loggen är redan sammanfattad"
+          }
         }
       }
     },
@@ -1485,6 +1857,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deze stap is niet voltooid: %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det här steget slutfördes inte: %@"
           }
         }
       }
@@ -1510,6 +1888,12 @@
             "state" : "translated",
             "value" : "Dit duurt een paar minuten. Houd de Mac aangesloten op de stroom en op het netwerk."
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det här tar några minuter. Låt datorn vara ansluten till ström och nätverk."
+          }
         }
       }
     },
@@ -1533,6 +1917,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Time-out"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsgränsen överskreds"
           }
         }
       }
@@ -1558,6 +1948,12 @@
             "state" : "translated",
             "value" : "Opnieuw proberen"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Försök igen"
+          }
         }
       }
     },
@@ -1581,6 +1977,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verificatie mislukt"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifieringen misslyckades"
           }
         }
       }
@@ -1606,6 +2008,12 @@
             "state" : "translated",
             "value" : "Wachten"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Väntar"
+          }
         }
       }
     },
@@ -1629,6 +2037,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wachten op het configuratieprofiel…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Väntar på konfigurationsprofilen…"
           }
         }
       }
@@ -1654,6 +2068,12 @@
             "state" : "translated",
             "value" : "Wacht op jou"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Väntar på dig"
+          }
         }
       }
     },
@@ -1677,6 +2097,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bezig…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbetar…"
           }
         }
       }
@@ -1702,6 +2128,12 @@
             "state" : "translated",
             "value" : "Je Mac is klaar"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Din Mac är klar"
+          }
         }
       }
     },
@@ -1726,6 +2158,12 @@
             "state" : "translated",
             "value" : "Je Mac werkt gewoon. Neem contact op met IT om het instellen af te ronden: %@"
           }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Din Mac fungerar som vanligt. Kontakta IT för att slutföra konfigurationen: %@"
+          }
         }
       }
     },
@@ -1749,6 +2187,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Je Mac werkt gewoon. Neem contact op met de IT-helpdesk om het instellen af te ronden."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Din Mac fungerar som vanligt. Kontakta IT-supporten för att slutföra konfigurationen."
           }
         }
       }

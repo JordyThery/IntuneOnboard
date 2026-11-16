@@ -16,7 +16,7 @@ every key.
 
 | Type | Forms |
 |---|---|
-| localized string | A string, or a dictionary of language code → string. Resolved as exact tag → base language (`nl-BE` → `nl`) → `en` → first key. |
+| localized string | A string, or a dictionary of language code → string. Resolved as exact tag → shorter tag (`nl-BE` → `nl`) → another region of the same language (`sv` → `sv-SE`) → `en` → first key. Tags are case-insensitive and `sv_SE` equals `sv-SE`. |
 | icon | `symbol:<SF Symbol>`, `name:<asset>`, an absolute path to an image or `.app`, `bundleid:<id>`, or an `https` URL. Unresolvable icons show a placeholder. |
 | URL | `https` only. |
 
@@ -29,10 +29,12 @@ every key.
 	<string>Je Mac wordt ingesteld</string>
 	<key>fr</key>
 	<string>Configuration de votre Mac</string>
+	<key>sv</key>
+	<string>Din Mac ställs in</string>
 </dict>
 ```
 
-The app's own text is English, Dutch or French, following the Mac's language.
+The app's own text is English, Dutch, French or Swedish, following the Mac's language.
 Include an `en` entry in every localized dictionary.
 
 ## Top level

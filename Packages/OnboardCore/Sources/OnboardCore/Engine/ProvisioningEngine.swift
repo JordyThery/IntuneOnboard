@@ -86,12 +86,6 @@ public actor ProvisioningEngine {
         state.lastRunAt = .now
         persist(engineState: .running)
 
-        // Route `status:` lines to the running item.
-        var itemContext = context
-        itemContext.statusTextHandler = { [weak self] text in
-            Task { await self?.recordStatusText(text) }
-        }
-
         for item in items {
             let previous = state.items[item.id]
             if let existing = previous?.outcome, existing == .success || existing == .skipped {
@@ -127,6 +121,15 @@ public actor ProvisioningEngine {
                 attempts: attempts
             ))
             log("item \(item.id): starting (attempt \(attempts))")
+
+            // Route `status:` lines to this item. The handler runs on another
+            // task, so it carries the item's id: a line that arrives after
+            // the item finished must not land on the next one.
+            var itemContext = context
+            let itemID = item.id
+            itemContext.statusTextHandler = { [weak self] text in
+                Task { await self?.recordStatusText(text, for: itemID) }
+            }
 
             let result: ActionResult
             if configuration.dryRun {
@@ -171,9 +174,9 @@ public actor ProvisioningEngine {
         context.logSink?(message)
     }
 
-    private func recordStatusText(_ text: String) {
-        guard let currentItemID else { return }
-        statusTexts[currentItemID] = text
+    private func recordStatusText(_ text: String, for itemID: String) {
+        guard currentItemID == itemID else { return }
+        statusTexts[itemID] = text
         publish(engineState: .running)
     }
 
