@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-11-16
 
 ### Added
 
@@ -15,8 +15,8 @@
   same language and script (`sv` → `sv-SE`) before English.
 - A `status:` line arriving just after an item finished could be shown on the
   next item.
-- `preinstall` and `uninstall.sh` did not stop the login agent in Setup
-  Assistant's `_mbsetupuser` session, which `postinstall` can start it in.
+- Upgrades and `uninstall.sh` left the login agent running in Setup
+  Assistant's `_mbsetupuser` session.
 
 ## 1.0.2
 
