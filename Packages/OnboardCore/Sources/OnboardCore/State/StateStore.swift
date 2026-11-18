@@ -10,19 +10,23 @@ public struct DeviceState: Codable, Equatable, Sendable {
     /// Consecutive preflight failures; reset when preflight passes. Limited
     /// like item attempts.
     public var preflightFailures: Int
+    /// Marked finished by `existingMacs` without running provisioning.
+    public var skippedAsExisting: Bool
 
     public init(
         schemaVersion: Int = 1,
         items: [String: ItemRecord] = [:],
         completedAt: Date? = nil,
         lastRunAt: Date? = nil,
-        preflightFailures: Int = 0
+        preflightFailures: Int = 0,
+        skippedAsExisting: Bool = false
     ) {
         self.schemaVersion = schemaVersion
         self.items = items
         self.completedAt = completedAt
         self.lastRunAt = lastRunAt
         self.preflightFailures = preflightFailures
+        self.skippedAsExisting = skippedAsExisting
     }
 
     /// Tolerates keys missing from older files, so the completion marker
@@ -34,6 +38,7 @@ public struct DeviceState: Codable, Equatable, Sendable {
         completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
         lastRunAt = try container.decodeIfPresent(Date.self, forKey: .lastRunAt)
         preflightFailures = try container.decodeIfPresent(Int.self, forKey: .preflightFailures) ?? 0
+        skippedAsExisting = try container.decodeIfPresent(Bool.self, forKey: .skippedAsExisting) ?? false
     }
 }
 

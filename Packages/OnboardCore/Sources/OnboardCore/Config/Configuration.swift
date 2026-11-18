@@ -145,6 +145,22 @@ public struct Configuration: Equatable, Sendable {
         }
     }
 
+    /// Macs set up before Intune Onboard was deployed.
+    public struct ExistingMacs: Equatable, Sendable {
+        public static let defaultSetupOlderThanHours = 24
+
+        /// Mark such a Mac as finished instead of running either stage.
+        public let skip: Bool
+        /// A Mac whose Setup Assistant finished at least this long before the
+        /// daemon's first run counts as existing.
+        public let setupOlderThanHours: Int
+
+        public init(skip: Bool = false, setupOlderThanHours: Int = ExistingMacs.defaultSetupOlderThanHours) {
+            self.skip = skip
+            self.setupOlderThanHours = setupOlderThanHours
+        }
+    }
+
     public struct Logging: Equatable, Sendable {
         public let maxFileSizeMB: Int
         public let keepArchives: Int
@@ -161,6 +177,7 @@ public struct Configuration: Equatable, Sendable {
     public let dryRun: Bool
     public let organization: Organization?
     public let requireADE: Bool
+    public let existingMacs: ExistingMacs?
     public let network: Network
     public let installomator: Installomator
     public let provisioning: Provisioning?
@@ -172,6 +189,7 @@ public struct Configuration: Equatable, Sendable {
         dryRun: Bool = false,
         organization: Organization? = nil,
         requireADE: Bool = false,
+        existingMacs: ExistingMacs? = nil,
         network: Network = Network(),
         installomator: Installomator = Installomator(),
         provisioning: Provisioning? = nil,
@@ -182,6 +200,7 @@ public struct Configuration: Equatable, Sendable {
         self.dryRun = dryRun
         self.organization = organization
         self.requireADE = requireADE
+        self.existingMacs = existingMacs
         self.network = network
         self.installomator = installomator
         self.provisioning = provisioning

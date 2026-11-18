@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `existingMacs`: for rolling out to Macs already in use. A Mac set up
+  more than `setupOlderThanHours` (default 24) before the first run is
+  marked complete without running either stage or showing anything, and
+  reports `provisioning: skipped (existing Mac)`.
+
 ## 1.1.0 — 2026-11-16
 
 ### Added

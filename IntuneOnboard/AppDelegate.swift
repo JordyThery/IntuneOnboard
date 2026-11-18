@@ -11,7 +11,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard case .user = LaunchArguments.current.mode else { return }
 
         let configuration = try? ConfigLoader.load()
-        let deviceCompleted = (try? StateStore().loadDeviceState())?.completedAt != nil
+        let deviceState = (try? StateStore().loadDeviceState()) ?? nil
+        // Checked here too: at install the agent can start before the daemon decides.
+        // A dry run still shows, as it does on any completed Mac.
+        if configuration?.dryRun != true, deviceState?.skippedAsExisting == true || ExistingMac.applies(
+            configuration: configuration,
+            deviceState: deviceState,
+            setupCompletedAt: ExistingMac.setupCompletedAt()
+        ) {
+            ExistingMac.recordUserSkipped()
+            OnboardLog.app.notice("existing Mac (existingMacs) — nothing to show in this user session")
+            exit(EXIT_SUCCESS)
+        }
+        let deviceCompleted = deviceState?.completedAt != nil
         let outstanding = LiveOnboarding.hasOutstandingWork(configuration: configuration)
         guard !UserSessionGate.shouldPresent(
             deviceCompleted: deviceCompleted,
